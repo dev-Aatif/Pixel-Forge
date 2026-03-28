@@ -1,0 +1,17 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Native prebuilt libs (user downloads these)
+app/src/main/jniLibs/
+
+# Model files (too large for git)
+app/src/main/assets/models/v1/*.bin
+app/src/main/assets/models/v1/*.param
