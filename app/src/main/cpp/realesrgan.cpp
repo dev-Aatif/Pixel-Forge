@@ -30,11 +30,11 @@ int RealESRGAN::load(AAssetManager* mgr, const std::string& modelName,
     cancelled_.store(false);
     progress_.store(0.0f);
 
-    // Configure network options
+    // Configure network options for high performance
     net_.opt.use_vulkan_compute = useGpu;
     net_.opt.use_fp16_packed = true;
     net_.opt.use_fp16_storage = true;
-    net_.opt.use_fp16_arithmetic = false; // Keep precision for arithmetic
+    net_.opt.use_fp16_arithmetic = true; // Use half-precision arithmetic for speed
     net_.opt.num_threads = 4;
 
     // Construct asset paths
@@ -70,12 +70,10 @@ int RealESRGAN::load(AAssetManager* mgr, const std::string& modelName,
 }
 
 int RealESRGAN::autoTileSize() const {
-    // Conservative defaults for mobile devices
-    // Vulkan GPU typically handles larger tiles
     if (useGpu_) {
-        return 200; // Good balance for mobile GPUs
+        return 160; // Ultra-safe tile size for entry-level mobile GPUs
     }
-    return 100; // CPU mode: smaller tiles to avoid OOM
+    return 128; // Standard tile for CPU
 }
 
 int RealESRGAN::process(const unsigned char* inData, int inWidth, int inHeight,
@@ -137,16 +135,11 @@ int RealESRGAN::process(const unsigned char* inData, int inWidth, int inHeight,
             int tileH = py1 - py0;
 
             // Extract tile from input (RGBA → RGB ncnn::Mat)
-            ncnn::Mat tileIn(tileW, tileH, channels);
-            for (int c = 0; c < channels; c++) {
-                float* channelPtr = tileIn.channel(c);
-                for (int y = 0; y < tileH; y++) {
-                    for (int x = 0; x < tileW; x++) {
-                        int srcIdx = ((py0 + y) * inWidth + (px0 + x)) * 4 + c;
-                        channelPtr[y * tileW + x] = inData[srcIdx] / 255.0f;
-                    }
-                }
-            }
+            // Using fast Neon-accelerated ncnn conversions
+            ncnn::Mat tileIn = ncnn::Mat::from_pixels(
+                inData + (size_t)(py0 * inWidth + px0) * 4,
+                ncnn::Mat::PIXEL_RGBA2RGB, tileW, tileH, inWidth * 4
+            );
 
             // Process tile through network
             ncnn::Mat tileOut;
@@ -169,20 +162,11 @@ int RealESRGAN::process(const unsigned char* inData, int inWidth, int inHeight,
             int padTop  = (y0 - py0) * scale_;
 
             // Copy tile output to final output (RGB → RGBA)
-            int copyW = outX1 - outX0;
-            int copyH = outY1 - outY0;
-
-            for (int y = 0; y < copyH; y++) {
-                for (int x = 0; x < copyW; x++) {
-                    int dstIdx = ((outY0 + y) * (*outWidth) + (outX0 + x)) * 4;
-                    for (int c = 0; c < channels; c++) {
-                        float val = tileOut.channel(c)[(padTop + y) * tileOut.w + (padLeft + x)];
-                        val = std::max(0.0f, std::min(1.0f, val));
-                        (*outData)[dstIdx + c] = static_cast<unsigned char>(val * 255.0f + 0.5f);
-                    }
-                    (*outData)[dstIdx + 3] = 255; // Alpha
-                }
-            }
+            // Using fast Neon-accelerated ncnn conversions
+            tileOut.to_pixels(
+                *outData + (size_t)(outY0 * (*outWidth) + outX0) * 4,
+                ncnn::Mat::PIXEL_RGB2RGBA, (*outWidth) * 4
+            );
 
             processedTiles++;
             progress_.store(static_cast<float>(processedTiles) / totalTiles);

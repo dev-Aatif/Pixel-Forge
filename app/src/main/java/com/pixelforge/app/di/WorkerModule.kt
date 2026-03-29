@@ -1,6 +1,6 @@
 package com.pixelforge.app.di
 
-import com.pixelforge.app.native.RealesrganBridge
+import com.pixelforge.app.bridge.RealesrganBridge
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

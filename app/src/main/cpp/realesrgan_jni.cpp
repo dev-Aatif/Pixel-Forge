@@ -13,23 +13,20 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, TAG, __VA_ARGS__)
 
-// Global engine instance (singleton per process)
+// Global engine instance and state tracking for caching
 static std::unique_ptr<pixelforge::RealESRGAN> g_engine;
+static std::string g_current_model;
+static int g_current_scale = -1;
+static bool g_current_gpu = false;
 
 extern "C" {
 
 /**
  * Initialize the Real-ESRGAN engine with a specific model.
- *
- * @param assetManager Android AssetManager for loading model files
- * @param modelName    Model name (e.g., "realesrgan-x4plus")
- * @param scale        Upscale factor (2 or 4)
- * @param tileSize     Tile size (0 = auto)
- * @param useGpu       Whether to use Vulkan GPU
- * @return 0 on success
+ * Caches the engine instance to avoid redundant loading.
  */
 JNIEXPORT jint JNICALL
-Java_com_pixelforge_app_native_RealesrganBridge_nativeInit(
+Java_com_pixelforge_app_bridge_RealesrganBridge_nativeInit(
         JNIEnv* env,
         jobject /* this */,
         jobject assetManager,
@@ -37,12 +34,6 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeInit(
         jint scale,
         jint tileSize,
         jboolean useGpu) {
-
-    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
-    if (!mgr) {
-        LOGE("Failed to get AAssetManager");
-        return -1;
-    }
 
     const char* modelStr = env->GetStringUTFChars(modelName, nullptr);
     if (!modelStr) {
@@ -53,7 +44,23 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeInit(
     std::string model(modelStr);
     env->ReleaseStringUTFChars(modelName, modelStr);
 
+    // Check if we can reuse the existing engine
+    if (g_engine && g_engine->isLoaded() && 
+        g_current_model == model && 
+        g_current_scale == scale && 
+        g_current_gpu == (bool)useGpu) {
+        LOGI("Reusing cached engine: %s (scale=%d, gpu=%d)", model.c_str(), scale, useGpu);
+        return 0;
+    }
+
+    AAssetManager* mgr = AAssetManager_fromJava(env, assetManager);
+    if (!mgr) {
+        LOGE("Failed to get AAssetManager");
+        return -1;
+    }
+
     // Create or reset engine
+    LOGI("Initializing new engine: %s (scale=%d, gpu=%d)", model.c_str(), scale, useGpu);
     g_engine = std::make_unique<pixelforge::RealESRGAN>();
 
     int ret = g_engine->load(mgr, model, scale, tileSize, useGpu);
@@ -63,7 +70,11 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeInit(
         return ret;
     }
 
-    LOGI("Engine initialized: model=%s, scale=%d", model.c_str(), scale);
+    // Update cache state
+    g_current_model = model;
+    g_current_scale = scale;
+    g_current_gpu = useGpu;
+
     return 0;
 }
 
@@ -74,7 +85,7 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeInit(
  * @return Upscaled Bitmap, or null on failure
  */
 JNIEXPORT jobject JNICALL
-Java_com_pixelforge_app_native_RealesrganBridge_nativeProcess(
+Java_com_pixelforge_app_bridge_RealesrganBridge_nativeProcess(
         JNIEnv* env,
         jobject /* this */,
         jobject inputBitmap) {
@@ -163,7 +174,7 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeProcess(
  * Get current processing progress [0.0, 1.0].
  */
 JNIEXPORT jfloat JNICALL
-Java_com_pixelforge_app_native_RealesrganBridge_nativeGetProgress(
+Java_com_pixelforge_app_bridge_RealesrganBridge_nativeGetProgress(
         JNIEnv* /* env */,
         jobject /* this */) {
     if (!g_engine) return 0.0f;
@@ -174,7 +185,7 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeGetProgress(
  * Request cancellation of current processing.
  */
 JNIEXPORT void JNICALL
-Java_com_pixelforge_app_native_RealesrganBridge_nativeCancel(
+Java_com_pixelforge_app_bridge_RealesrganBridge_nativeCancel(
         JNIEnv* /* env */,
         jobject /* this */) {
     if (g_engine) {
@@ -187,7 +198,7 @@ Java_com_pixelforge_app_native_RealesrganBridge_nativeCancel(
  * Release all native resources.
  */
 JNIEXPORT void JNICALL
-Java_com_pixelforge_app_native_RealesrganBridge_nativeRelease(
+Java_com_pixelforge_app_bridge_RealesrganBridge_nativeRelease(
         JNIEnv* /* env */,
         jobject /* this */) {
     if (g_engine) {

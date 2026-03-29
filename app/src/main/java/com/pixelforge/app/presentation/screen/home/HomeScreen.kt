@@ -52,6 +52,7 @@ import com.pixelforge.app.presentation.theme.DarkSurfaceElevated
 @Composable
 fun HomeScreen(
     onImageSelected: (Uri) -> Unit,
+    onRecentImageSelected: (Long) -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel()
@@ -191,7 +192,7 @@ fun HomeScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(DarkSurfaceElevated)
                                 .clickable {
-                                    // Navigate to result for this image
+                                    onRecentImageSelected(image.id)
                                 },
                             contentScale = ContentScale.Crop
                         )

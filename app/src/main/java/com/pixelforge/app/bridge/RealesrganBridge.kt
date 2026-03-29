@@ -1,4 +1,4 @@
-package com.pixelforge.app.native
+package com.pixelforge.app.bridge
 
 import android.content.res.AssetManager
 import android.graphics.Bitmap

@@ -10,10 +10,16 @@ import javax.inject.Inject
 class PixelForgeApp : Application(), Configuration.Provider {
 
     @Inject
-    lateinit val workerFactory: HiltWorkerFactory
+    lateinit var workerFactory: HiltWorkerFactory
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        // Initialize native library at application start
+        com.pixelforge.app.bridge.NativeLoader.load()
+    }
 }

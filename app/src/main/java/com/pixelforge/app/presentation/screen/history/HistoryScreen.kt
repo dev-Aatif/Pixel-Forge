@@ -44,6 +44,13 @@ fun HistoryScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
+                actions = {
+                    if (uiState.images.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.clearHistory() }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Clear History")
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     titleContentColor = MaterialTheme.colorScheme.onBackground

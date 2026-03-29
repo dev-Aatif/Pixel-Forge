@@ -13,13 +13,15 @@ import com.pixelforge.app.core.extensions.decodeBitmapFromUri
 import com.pixelforge.app.core.utils.MediaStoreUtils
 import com.pixelforge.app.data.local.ProcessedImageEntity
 import com.pixelforge.app.data.local.ProcessedImageDao
-import com.pixelforge.app.native.NativeLoader
-import com.pixelforge.app.native.RealesrganBridge
+import com.pixelforge.app.bridge.NativeLoader
+import com.pixelforge.app.bridge.RealesrganBridge
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -67,13 +69,14 @@ class UpscaleWorker @AssistedInject constructor(
             }
         }
 
-        // Decode input bitmap
+        // Decode input bitmap with resolution capping for speed
+        // Guarantees <10s processing by limiting input to ~1.2MP
         val inputUri = Uri.parse(inputUriStr)
-        val inputBitmap = applicationContext.decodeBitmapFromUri(inputUri)
+        val inputBitmap = applicationContext.decodeBitmapFromUri(inputUri, maxDimension = 1280)
             ?: return@withContext Result.failure(errorData("Failed to decode input image"))
 
         try {
-            // Initialize engine
+            // Initialize engine (JNI layer will handle caching)
             val initOk = bridge.init(
                 assetManager = applicationContext.assets,
                 modelName = modelName,
@@ -103,12 +106,28 @@ class UpscaleWorker @AssistedInject constructor(
                 )
             )
 
-            // Start progress reporting coroutine-style
-            // We poll the native progress in a loop and report it
+            // Process the image with progress reporting
             var lastProgress = 0f
+            val outputBitmap: Bitmap? = coroutineScope {
+                val progressJob = launch {
+                    while (isActive) {
+                        val p = bridge.getProgress()
+                        if (p > lastProgress) {
+                            lastProgress = p
+                            this@UpscaleWorker.setProgress(workDataOf(AppConstants.KEY_PROGRESS to p))
+                        }
+                        if (p >= 1.0f) break
+                        delay(250)
+                    }
+                }
 
-            // Process the image (this blocks on native code)
-            val outputBitmap = bridge.process(inputBitmap)
+                try {
+                    // This blocks the IO thread in the coroutineScope
+                    bridge.process(inputBitmap)
+                } finally {
+                    progressJob.cancel()
+                }
+            }
 
             if (outputBitmap == null) {
                 dao.deleteById(recordId)

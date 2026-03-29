@@ -57,6 +57,9 @@ fun NavGraph(navController: NavHostController) {
                     val encoded = Uri.encode(uri.toString())
                     navController.navigate(Routes.Editor.createRoute(encoded))
                 },
+                onRecentImageSelected = { recordId ->
+                    navController.navigate(Routes.Result.createRoute(recordId))
+                },
                 onNavigateToHistory = {
                     navController.navigate(Routes.History.route)
                 },

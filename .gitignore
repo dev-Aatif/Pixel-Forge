@@ -15,3 +15,31 @@ app/src/main/jniLibs/
 # Model files (too large for git)
 app/src/main/assets/models/v1/*.bin
 app/src/main/assets/models/v1/*.param
+
+# General
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+
+# Project specific
+local.properties
+
+# Native libs & Models (too large for git)
+app/src/main/jniLibs/
+app/src/main/assets/models/v1/*.bin
+app/src/main/assets/models/v1/*.param
+
+# Gradle Wrapper (some people keep these, but they are binary)
+# Only uncomment if you want to keep your repo strictly source-only
+# gradle-wrapper.jar
+
+# Kotlin/Hilt/Room generated files
+.kotlin/
+**/build/
+**/generated/

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.pixelforge.app.domain.model.ProcessedImage
 import com.pixelforge.app.domain.usecase.DeleteImageUseCase
 import com.pixelforge.app.domain.usecase.GetHistoryUseCase
+import com.pixelforge.app.domain.usecase.DeleteHistoryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,8 @@ data class HistoryUiState(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val getHistoryUseCase: GetHistoryUseCase,
-    private val deleteImageUseCase: DeleteImageUseCase
+    private val deleteImageUseCase: DeleteImageUseCase,
+    private val deleteHistoryUseCase: DeleteHistoryUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HistoryUiState())
@@ -40,6 +42,12 @@ class HistoryViewModel @Inject constructor(
     fun deleteImage(id: Long) {
         viewModelScope.launch {
             deleteImageUseCase(id)
+        }
+    }
+
+    fun clearHistory() {
+        viewModelScope.launch {
+            deleteHistoryUseCase()
         }
     }
 }

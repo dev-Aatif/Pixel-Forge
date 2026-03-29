@@ -5,6 +5,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 
 /**
@@ -76,6 +78,28 @@ fun Context.getFileSize(uri: Uri): Long {
         } ?: 0L
     } catch (e: Exception) {
         0L
+    }
+}
+
+/**
+ * Copy a content URI to internal cache storage to ensure persistence.
+ * Useful for transient URIs like Photo Picker.
+ */
+fun Context.copyUriToInternalStorage(uri: Uri, folderName: String = "uploads"): Uri? {
+    return try {
+        val inputStream = contentResolver.openInputStream(uri) ?: return null
+        val folder = File(cacheDir, folderName).apply { mkdirs() }
+        val fileName = "IMG_${System.currentTimeMillis()}.jpg"
+        val file = File(folder, fileName)
+        
+        inputStream.use { input ->
+            FileOutputStream(file).use { output ->
+                input.copyTo(output)
+            }
+        }
+        Uri.fromFile(file)
+    } catch (e: Exception) {
+        null
     }
 }
 

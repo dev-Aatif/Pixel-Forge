@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt.android)
+    alias(libs.plugins.room)
 }
 
 android {
@@ -25,12 +26,19 @@ android {
 
         externalNativeBuild {
             cmake {
-                cppFlags += listOf("-std=c++17", "-O2", "-fvisibility=hidden")
+                cppFlags += listOf("-std=c++17", "-O2", "-fvisibility=hidden", "-fopenmp")
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
-                    "-DANDROID_TOOLCHAIN=clang"
+                    "-DANDROID_TOOLCHAIN=clang",
+                    "-DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384"
                 )
             }
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
         }
     }
 
@@ -81,6 +89,33 @@ android {
     }
 }
 
+// Task to copy libomp.so from NDK into jniLibs
+val copyLibOmp = tasks.register<Copy>("copyLibOmp") {
+    val ndkDir = project.android.ndkDirectory.absolutePath
+    val abi = "arm64-v8a"
+    val clangAbi = "aarch64" // Clang uses aarch64 for arm64-v8a in the NDK layout
+
+    // Modern NDKs (23+) store libomp in a multi-level subdirectory.
+    // We search the 'toolchains/llvm/prebuilt' directory for the correct libomp.so.
+    from(ndkDir)
+    include("**/toolchains/llvm/prebuilt/*/lib/clang/*/lib/linux/$clangAbi/libomp.so")
+    
+    into(file("src/main/jniLibs/$abi"))
+    
+    // Flatten the directory structure when copying
+    eachFile {
+        path = "libomp.so"
+    }
+    includeEmptyDirs = false
+}
+
+// Ensure this task runs before any task that merges native/JNI libs
+tasks.configureEach {
+    if (name.startsWith("merge") && (name.endsWith("NativeLibs") || name.endsWith("JniLibFolders"))) {
+        dependsOn(copyLibOmp)
+    }
+}
+
 dependencies {
     // AndroidX Core
     implementation(libs.androidx.core.ktx)
@@ -99,6 +134,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons)
     implementation(libs.androidx.compose.animation)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation(libs.material)
 
     // Room
     implementation(libs.androidx.room.runtime)

@@ -12,6 +12,7 @@ import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.core.extensions.getImageDimensions
 import com.pixelforge.app.core.extensions.getFileSize
 import com.pixelforge.app.core.extensions.formatFileSize
+import com.pixelforge.app.core.extensions.copyUriToInternalStorage
 import com.pixelforge.app.domain.model.ModelType
 import com.pixelforge.app.domain.model.UpscaleConfig
 import com.pixelforge.app.domain.repository.SettingsRepository
@@ -46,11 +47,15 @@ class EditorViewModel @Inject constructor(
 
     fun loadImage(uriString: String) {
         viewModelScope.launch {
-            val uri = Uri.parse(uriString)
+            val originalUri = Uri.parse(uriString)
             val context = getApplication<Application>()
 
-            val dimensions = context.getImageDimensions(uri)
-            val fileSize = context.getFileSize(uri)
+            // Persist the URI by copying to internal storage
+            val persistentUri = context.copyUriToInternalStorage(originalUri) ?: originalUri
+            val finalUriString = persistentUri.toString()
+
+            val dimensions = context.getImageDimensions(persistentUri)
+            val fileSize = context.getFileSize(persistentUri)
 
             // Load defaults from settings
             val defaultModel = settingsRepository.getDefaultModelType().first()
@@ -66,7 +71,7 @@ class EditorViewModel @Inject constructor(
             )
 
             _uiState.value = EditorUiState(
-                imageUri = uriString,
+                imageUri = finalUriString,
                 imageWidth = width,
                 imageHeight = height,
                 fileSize = fileSize.formatFileSize(),
