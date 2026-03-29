@@ -22,7 +22,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class EditorUiState(
@@ -50,12 +52,13 @@ class EditorViewModel @Inject constructor(
             val originalUri = Uri.parse(uriString)
             val context = getApplication<Application>()
 
-            // Persist the URI by copying to internal storage
-            val persistentUri = context.copyUriToInternalStorage(originalUri) ?: originalUri
-            val finalUriString = persistentUri.toString()
-
-            val dimensions = context.getImageDimensions(persistentUri)
-            val fileSize = context.getFileSize(persistentUri)
+            // Move I/O to background thread
+            val (finalUriString, dimensions, fileSize) = withContext(Dispatchers.IO) {
+                val persistentUri = context.copyUriToInternalStorage(originalUri) ?: originalUri
+                val dims = context.getImageDimensions(persistentUri)
+                val size = context.getFileSize(persistentUri)
+                Triple(persistentUri.toString(), dims, size)
+            }
 
             // Load defaults from settings
             val defaultModel = settingsRepository.getDefaultModelType().first()

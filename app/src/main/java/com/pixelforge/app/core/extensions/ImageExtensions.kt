@@ -73,8 +73,8 @@ fun Context.getImageDimensions(uri: Uri): Pair<Int, Int>? {
  */
 fun Context.getFileSize(uri: Uri): Long {
     return try {
-        contentResolver.openInputStream(uri)?.use { stream ->
-            stream.available().toLong()
+        contentResolver.openAssetFileDescriptor(uri, "r")?.use { afd ->
+            afd.length
         } ?: 0L
     } catch (e: Exception) {
         0L
@@ -82,13 +82,13 @@ fun Context.getFileSize(uri: Uri): Long {
 }
 
 /**
- * Copy a content URI to internal cache storage to ensure persistence.
+ * Copy a content URI to internal files storage to ensure persistence.
  * Useful for transient URIs like Photo Picker.
  */
 fun Context.copyUriToInternalStorage(uri: Uri, folderName: String = "uploads"): Uri? {
     return try {
         val inputStream = contentResolver.openInputStream(uri) ?: return null
-        val folder = File(cacheDir, folderName).apply { mkdirs() }
+        val folder = File(filesDir, folderName).apply { mkdirs() }
         val fileName = "IMG_${System.currentTimeMillis()}.jpg"
         val file = File(folder, fileName)
         

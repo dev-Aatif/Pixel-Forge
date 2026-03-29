@@ -58,7 +58,7 @@ class UpscaleWorker @AssistedInject constructor(
         val modelName = inputData.getString(AppConstants.KEY_MODEL_NAME)
             ?: AppConstants.MODEL_PHOTO
 
-        val scaleFactor = inputData.getInt(AppConstants.KEY_SCALE_FACTOR, AppConstants.DEFAULT_SCALE_FACTOR)
+        val userScaleFactor = inputData.getInt(AppConstants.KEY_SCALE_FACTOR, -1)
         val tileSize = inputData.getInt(AppConstants.KEY_TILE_SIZE, AppConstants.DEFAULT_TILE_SIZE)
         val useGpu = inputData.getBoolean(AppConstants.KEY_USE_GPU, AppConstants.DEFAULT_USE_GPU)
 
@@ -74,6 +74,15 @@ class UpscaleWorker @AssistedInject constructor(
         val inputUri = Uri.parse(inputUriStr)
         val inputBitmap = applicationContext.decodeBitmapFromUri(inputUri, maxDimension = 1280)
             ?: return@withContext Result.failure(errorData("Failed to decode input image"))
+
+        // Smart upscale factor selection
+        val scaleFactor = if (userScaleFactor != -1) {
+            userScaleFactor
+        } else if (inputBitmap.width > 1000) {
+            2
+        } else {
+            4
+        }
 
         try {
             // Initialize engine (JNI layer will handle caching)

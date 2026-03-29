@@ -101,7 +101,7 @@ private:
 
     // Pre/post processing params
     float prepadding_;
-    static constexpr int TILE_OVERLAP = 10;
+    static constexpr int TILE_OVERLAP = 32;
 
     // Progress tracking
     std::atomic<float> progress_{0.0f};
