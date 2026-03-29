@@ -5,6 +5,8 @@
 #include <cmath>
 
 #include <android/log.h>
+#include "cpu.h"
+#include "gpu.h"
 
 #define TAG "PixelForge-Native"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  TAG, __VA_ARGS__)
