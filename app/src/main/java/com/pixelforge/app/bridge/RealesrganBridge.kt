@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.util.Log
 
 /**
- * Kotlin wrapper for the native Real-ESRGAN JNI bridge.
+ * Kotlin wrapper for the native Real-ESRGAN NCNN JNI bridge.
  * All JNI calls are centralized here — never scatter them in other classes.
  */
 class RealesrganBridge {
@@ -14,19 +14,20 @@ class RealesrganBridge {
         private const val TAG = "RealesrganBridge"
     }
 
-    // =========================================================
-    // JNI native method declarations
-    // =========================================================
-
     private external fun nativeInit(
         assetManager: AssetManager,
         modelName: String,
+        externalParamPath: String?,
+        externalBinPath: String?,
         scale: Int,
         tileSize: Int,
-        useGpu: Boolean
+        useGpu: Boolean,
+        allowFp16Arithmetic: Boolean
     ): Int
 
     private external fun nativeProcess(inputBitmap: Bitmap): Bitmap?
+
+    private external fun nativeIsUsingGpu(): Boolean
 
     private external fun nativeGetProgress(): Float
 
@@ -34,36 +35,37 @@ class RealesrganBridge {
 
     private external fun nativeRelease()
 
-    // =========================================================
-    // Public API
-    // =========================================================
-
-    /**
-     * Initialize the engine with a specific model.
-     *
-     * @return true on success, false on failure
-     */
     fun init(
         assetManager: AssetManager,
         modelName: String,
         scale: Int,
         tileSize: Int = 0,
-        useGpu: Boolean = true
+        useGpu: Boolean = true,
+        allowFp16Arithmetic: Boolean = false,
+        externalParamPath: String? = null,
+        externalBinPath: String? = null
     ): Boolean {
-        val result = nativeInit(assetManager, modelName, scale, tileSize, useGpu)
+        if (!NativeLoader.isLoaded && !NativeLoader.load()) {
+            return false
+        }
+        val result = nativeInit(
+            assetManager,
+            modelName,
+            externalParamPath,
+            externalBinPath,
+            scale,
+            tileSize,
+            useGpu,
+            allowFp16Arithmetic
+        )
         if (result != 0) {
             Log.e(TAG, "Native init failed with code: $result")
         }
         return result == 0
     }
 
-    /**
-     * Process (upscale) a bitmap.
-     *
-     * @param input ARGB_8888 bitmap
-     * @return Upscaled bitmap, or null on failure/cancellation
-     */
     fun process(input: Bitmap): Bitmap? {
+        if (!NativeLoader.isLoaded) return null
         if (input.config != Bitmap.Config.ARGB_8888) {
             Log.e(TAG, "Input must be ARGB_8888, got ${input.config}")
             return null
@@ -71,18 +73,15 @@ class RealesrganBridge {
         return nativeProcess(input)
     }
 
-    /**
-     * Get current processing progress [0.0, 1.0].
-     */
-    fun getProgress(): Float = nativeGetProgress()
+    fun isUsingGpu(): Boolean = if (NativeLoader.isLoaded) nativeIsUsingGpu() else false
 
-    /**
-     * Request cancellation of current processing.
-     */
-    fun cancel() = nativeCancel()
+    fun getProgress(): Float = if (NativeLoader.isLoaded) nativeGetProgress() else 0f
 
-    /**
-     * Release all native resources.
-     */
-    fun release() = nativeRelease()
+    fun cancel() {
+        if (NativeLoader.isLoaded) nativeCancel()
+    }
+
+    fun release() {
+        if (NativeLoader.isLoaded) nativeRelease()
+    }
 }

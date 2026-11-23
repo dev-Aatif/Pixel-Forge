@@ -20,8 +20,13 @@ hilt = "2.53.1"
 hilt-navigation-compose = "1.2.0"
 hilt-work = "1.2.0"
 
-# Image Loading
+# Image Loading & Processing
 coil = "2.7.0"
+exifinterface = "1.4.2"
+
+# On-device AI Runtimes
+onnxruntime = "1.22.0"
+mediapipe-tasks-vision = "0.10.26"
 
 # Coroutines
 coroutines = "1.9.0"
@@ -70,8 +75,13 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "hilt-work" }
 hilt-work-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "hilt-work" }
 
-# Image Loading
+# Image Loading & Processing
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+
+# On-device AI Runtimes
+onnxruntime-android = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version.ref = "onnxruntime" }
+mediapipe-tasks-vision = { group = "com.google.mediapipe", name = "tasks-vision", version.ref = "mediapipe-tasks-vision" }
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }

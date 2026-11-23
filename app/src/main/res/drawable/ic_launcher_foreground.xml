@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Bottom-left quadrant: coarse 2x2 pixel mosaic (low-res input) -->
+    <path
+        android:fillColor="#57514A"
+        android:pathData="M30,56h10v10h-10z" />
+    <path
+        android:fillColor="#877F74"
+        android:pathData="M42,56h10v10h-10z" />
+    <path
+        android:fillColor="#877F74"
+        android:pathData="M30,68h10v10h-10z" />
+    <path
+        android:fillColor="#B2AAA0"
+        android:pathData="M42,68h10v10h-10z" />
+
+    <!-- Top-left quadrant: crisp fibre-white optical bracket -->
+    <path
+        android:fillColor="#EAE5DC"
+        android:pathData="M30,30h22v10h-12v12h-10z" />
+
+    <!-- Bottom-right quadrant: crisp fibre-white optical bracket -->
+    <path
+        android:fillColor="#EAE5DC"
+        android:pathData="M68,56h10v22h-22v-10h12z" />
+
+    <!-- Top-right quadrant: safelight amber super-resolved lens block with optical diamond aperture -->
+    <path
+        android:fillColor="#E59A3C"
+        android:fillType="evenOdd"
+        android:pathData="M56,30h22v22h-22z M67,34.5 L73.5,41 L67,47.5 L60.5,41 Z" />
+    <!-- Precision focal pixel core -->
+    <path
+        android:fillColor="#EAE5DC"
+        android:pathData="M65.25,39.25h3.5v3.5h-3.5z" />
+</vector>

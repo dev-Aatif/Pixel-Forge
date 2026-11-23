@@ -17,13 +17,6 @@ object MediaStoreUtils {
 
     /**
      * Save a Bitmap to the device's Pictures directory via MediaStore.
-     *
-     * @param context Application context
-     * @param bitmap  The bitmap to save
-     * @param format  Image format (JPEG or PNG)
-     * @param quality Compression quality (1-100, only for JPEG)
-     * @param subfolder Optional subfolder within Pictures
-     * @return The content URI of the saved image, or null on failure
      */
     fun saveBitmap(
         context: Context,
@@ -32,7 +25,7 @@ object MediaStoreUtils {
         quality: Int = 95,
         subfolder: String = "PixelForge"
     ): Uri? {
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss_SSS", Locale.US).format(Date())
         val filename = "PF_${timestamp}.${format.extension}"
 
         val contentValues = ContentValues().apply {
@@ -50,29 +43,40 @@ object MediaStoreUtils {
             ?: return null
 
         return try {
-            resolver.openOutputStream(uri)?.use { outputStream ->
+            val wroteOk = resolver.openOutputStream(uri)?.use { outputStream ->
                 val compressFormat = when (format) {
                     ImageFormat.JPEG -> Bitmap.CompressFormat.JPEG
                     ImageFormat.PNG -> Bitmap.CompressFormat.PNG
+                    ImageFormat.WEBP -> Bitmap.CompressFormat.WEBP_LOSSY
                 }
-                bitmap.compress(compressFormat, quality, outputStream)
+                bitmap.compress(compressFormat, quality.coerceIn(1, 100), outputStream)
+            } ?: false
+
+            if (!wroteOk) {
+                resolver.delete(uri, null, null)
+                return null
             }
 
-            // Clear IS_PENDING flag to make visible
             contentValues.clear()
             contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
             resolver.update(uri, contentValues, null, null)
 
             uri
-        } catch (e: Exception) {
-            // Clean up on failure
+        } catch (_: Exception) {
             resolver.delete(uri, null, null)
             null
         }
     }
 
     enum class ImageFormat(val extension: String, val mimeType: String) {
+        PNG("png", "image/png"),
         JPEG("jpg", "image/jpeg"),
-        PNG("png", "image/png")
+        WEBP("webp", "image/webp");
+
+        companion object {
+            fun fromString(value: String?): ImageFormat {
+                return entries.find { it.name.equals(value, ignoreCase = true) } ?: PNG
+            }
+        }
     }
 }

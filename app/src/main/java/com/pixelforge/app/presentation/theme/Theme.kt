@@ -1,16 +1,12 @@
 package com.pixelforge.app.presentation.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
@@ -38,7 +34,7 @@ private val DarkColorScheme = darkColorScheme(
 
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLightTheme,
-    onPrimary = OnPrimary,
+    onPrimary = LightSurface,
     primaryContainer = PrimaryContainer,
     background = LightBackground,
     onBackground = DarkBackground,
@@ -47,32 +43,28 @@ private val LightColorScheme = lightColorScheme(
     secondary = SecondaryDark,
     onSecondary = OnSecondary,
     error = ErrorRed,
-    onError = OnPrimary
+    onError = LightSurface
+)
+
+private val PixelForgeShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(6.dp),
+    medium = RoundedCornerShape(10.dp),
+    large = RoundedCornerShape(12.dp),
+    extraLarge = RoundedCornerShape(16.dp)
 )
 
 @Composable
 fun PixelForgeTheme(
-    darkTheme: Boolean = true, // Dark-first by design
+    darkTheme: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !darkTheme
-                isAppearanceLightNavigationBars = !darkTheme
-            }
-        }
-    }
-
     MaterialTheme(
         colorScheme = colorScheme,
         typography = PixelForgeTypography,
+        shapes = PixelForgeShapes,
         content = content
     )
 }

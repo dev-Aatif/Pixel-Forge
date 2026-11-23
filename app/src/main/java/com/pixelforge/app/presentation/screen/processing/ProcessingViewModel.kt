@@ -8,7 +8,6 @@ import androidx.work.WorkManager
 import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.data.local.ProcessedImageDao
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -47,18 +46,22 @@ class ProcessingViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(status = "Waiting in queue...")
                     }
                     WorkInfo.State.RUNNING -> {
-                        val progress = workInfo.progress.getFloat(AppConstants.KEY_PROGRESS, 0f)
+                        val progress = workInfo.progress.getFloat(AppConstants.KEY_PROGRESS, _uiState.value.progress)
+                        val msg = workInfo.progress.getString(AppConstants.KEY_STATUS_MESSAGE)
+                            ?: "Enhancing image... ${(progress * 100).toInt()}%"
                         _uiState.value = _uiState.value.copy(
                             progress = progress,
-                            status = "Enhancing image... ${(progress * 100).toInt()}%"
+                            status = msg
                         )
                     }
                     WorkInfo.State.SUCCEEDED -> {
-                        // Wait briefly to ensure DB is written
-                        delay(200)
-                        val latestRecords = dao.getAllOrdered().first()
-                        val recordId = latestRecords.firstOrNull()?.id
-                        
+                        val outputRecordId = workInfo.outputData.getLong(AppConstants.KEY_RECORD_ID, -1L)
+                        val recordId = if (outputRecordId > 0L) {
+                            outputRecordId
+                        } else {
+                            dao.getAllOrdered().first().firstOrNull()?.id
+                        }
+
                         _uiState.value = _uiState.value.copy(
                             progress = 1.0f,
                             status = "Done!",
@@ -85,9 +88,8 @@ class ProcessingViewModel @Inject constructor(
             }
         }
     }
-    
+
     fun cancelWork(workIdStr: String) {
-        val workManager = WorkManager.getInstance(getApplication())
-        workManager.cancelWorkById(UUID.fromString(workIdStr))
+        WorkManager.getInstance(getApplication()).cancelWorkById(UUID.fromString(workIdStr))
     }
 }

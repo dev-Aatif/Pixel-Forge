@@ -6,7 +6,15 @@
 }
 
 # Keep native bridge
--keep class com.pixelforge.app.native.** { *; }
+-keep class com.pixelforge.app.bridge.** { *; }
+
+# ONNX Runtime
+-keep class ai.onnxruntime.** { *; }
+-dontwarn ai.onnxruntime.**
+
+# MediaPipe
+-keep class com.google.mediapipe.** { *; }
+-dontwarn com.google.mediapipe.**
 
 # Hilt
 -dontwarn dagger.hilt.**

@@ -21,5 +21,6 @@ data class ProcessedImageEntity(
     val fileSizeBytes: Long,
     val processingTimeMs: Long,
     val status: String, // "completed", "failed", "processing"
+    val backendUsed: String = "NCNN",
     val createdAt: Long // epoch millis
 )

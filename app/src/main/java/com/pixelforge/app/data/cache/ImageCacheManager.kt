@@ -73,7 +73,7 @@ class ImageCacheManager @Inject constructor(
         var deletedCount = 0
 
         while (totalSize > MAX_CACHE_SIZE_BYTES && files.isNotEmpty()) {
-            val oldest = files.removeFirst()
+            val oldest = files.removeAt(0)
             totalSize -= oldest.length()
             if (oldest.delete()) deletedCount++
         }

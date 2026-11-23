@@ -1,7 +1,6 @@
 package com.pixelforge.app.domain.repository
 
 import com.pixelforge.app.domain.model.ModelType
-import com.pixelforge.app.core.utils.MediaStoreUtils
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -17,6 +16,12 @@ interface SettingsRepository {
 
     fun getUseGpu(): Flow<Boolean>
     suspend fun setUseGpu(useGpu: Boolean)
+
+    fun getUseNpu(): Flow<Boolean>
+    suspend fun setUseNpu(useNpu: Boolean)
+
+    fun getFaceEnhanceDefault(): Flow<Boolean>
+    suspend fun setFaceEnhanceDefault(enabled: Boolean)
 
     fun getDefaultExportFormat(): Flow<String>
     suspend fun setDefaultExportFormat(format: String)

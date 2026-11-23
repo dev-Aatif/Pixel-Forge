@@ -1,14 +1,14 @@
 package com.pixelforge.app.presentation.screen.result
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pixelforge.app.core.extensions.decodePreviewBitmap
 import com.pixelforge.app.domain.model.ProcessedImage
-import com.pixelforge.app.domain.usecase.GetHistoryUseCase
+import com.pixelforge.app.domain.repository.ImageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -30,56 +30,55 @@ data class ResultUiState(
 @HiltViewModel
 class ResultViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val getHistoryUseCase: GetHistoryUseCase
+    private val imageRepository: ImageRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ResultUiState())
     val uiState: StateFlow<ResultUiState> = _uiState.asStateFlow()
 
-    fun loadResult(recordId: Long) {
-        viewModelScope.launch {
-            // Find the record
-            getHistoryUseCase().collect { history ->
-                val record = history.find { it.id == recordId }
-                if (record == null) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Result not found"
-                    )
-                    return@collect
-                }
+    private var loadedRecordId: Long? = null
 
-                _uiState.value = _uiState.value.copy(record = record)
-                loadBitmaps(record)
+    fun loadResult(recordId: Long) {
+        if (loadedRecordId == recordId && _uiState.value.afterBitmap != null) return
+        loadedRecordId = recordId
+
+        viewModelScope.launch {
+            _uiState.value = ResultUiState(isLoading = true)
+            val record = imageRepository.getById(recordId)
+            if (record == null) {
+                _uiState.value = ResultUiState(
+                    isLoading = false,
+                    error = "Result not found"
+                )
+                return@launch
             }
+
+            _uiState.value = _uiState.value.copy(record = record)
+            loadBitmaps(record)
         }
     }
 
     private suspend fun loadBitmaps(record: ProcessedImage) {
         withContext(Dispatchers.IO) {
             try {
-                // Downsample large images for preview UI to avoid OOM
-                val options = BitmapFactory.Options().apply {
-                    inSampleSize = 2 // Simple downsample for preview
-                }
+                val beforeBitmap = context.decodePreviewBitmap(
+                    Uri.parse(record.inputUri),
+                    maxPreviewDimension = 1440
+                )?.asImageBitmap()
 
-                val beforeUri = Uri.parse(record.inputUri)
-                val beforeBitmap = context.contentResolver.openInputStream(beforeUri)?.use {
-                    BitmapFactory.decodeStream(it, null, options)
-                }?.asImageBitmap()
-
-                val afterUri = record.outputUri?.let { Uri.parse(it) }
-                val afterBitmap = afterUri?.let {
-                    context.contentResolver.openInputStream(it)?.use { stream ->
-                        BitmapFactory.decodeStream(stream, null, options)
-                    }?.asImageBitmap()
+                val afterBitmap = record.outputUri?.let { uriStr ->
+                    context.decodePreviewBitmap(
+                        Uri.parse(uriStr),
+                        maxPreviewDimension = 1440
+                    )?.asImageBitmap()
                 }
 
                 if (beforeBitmap != null && afterBitmap != null) {
                     _uiState.value = _uiState.value.copy(
                         beforeBitmap = beforeBitmap,
                         afterBitmap = afterBitmap,
-                        isLoading = false
+                        isLoading = false,
+                        error = null
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(

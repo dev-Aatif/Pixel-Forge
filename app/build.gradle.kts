@@ -42,10 +42,23 @@ android {
         }
     }
 
+    signingConfigs {
+        val keystorePath = System.getenv("RELEASE_KEYSTORE_PATH")
+        if (!keystorePath.isNullOrBlank()) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: ""
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: ""
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: ""
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfigs.findByName("release")?.let { signingConfig = it }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -82,6 +95,10 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    androidResources {
+        noCompress += listOf("tflite", "onnx", "bin", "param")
     }
 
     room {
@@ -154,8 +171,13 @@ dependencies {
     implementation(libs.hilt.work)
     ksp(libs.hilt.work.compiler)
 
-    // Image Loading
+    // Image Loading & Processing
     implementation(libs.coil.compose)
+    implementation(libs.androidx.exifinterface)
+
+    // On-device AI Runtimes
+    implementation(libs.onnxruntime.android)
+    implementation(libs.mediapipe.tasks.vision)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

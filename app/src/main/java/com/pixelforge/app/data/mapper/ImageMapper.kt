@@ -15,7 +15,7 @@ object ImageMapper {
             id = id,
             inputUri = inputUri,
             outputUri = outputUri,
-            modelType = ModelType.entries.find { it.modelName == modelName } ?: ModelType.PHOTO,
+            modelType = ModelType.fromModelName(modelName),
             scaleFactor = scaleFactor,
             inputWidth = inputWidth,
             inputHeight = inputHeight,
@@ -24,6 +24,7 @@ object ImageMapper {
             fileSizeBytes = fileSizeBytes,
             processingTimeMs = processingTimeMs,
             status = status,
+            backendUsed = backendUsed,
             createdAt = createdAt
         )
     }
@@ -42,6 +43,7 @@ object ImageMapper {
             fileSizeBytes = fileSizeBytes,
             processingTimeMs = processingTimeMs,
             status = status,
+            backendUsed = backendUsed,
             createdAt = createdAt
         )
     }

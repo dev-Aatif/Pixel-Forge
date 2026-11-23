@@ -16,6 +16,9 @@ interface ProcessedImageDao {
     @Query("SELECT * FROM processed_images ORDER BY createdAt DESC")
     fun getAllOrdered(): Flow<List<ProcessedImageEntity>>
 
+    @Query("SELECT * FROM processed_images")
+    suspend fun getAllSnapshot(): List<ProcessedImageEntity>
+
     @Query("SELECT * FROM processed_images WHERE id = :id")
     suspend fun getById(id: Long): ProcessedImageEntity?
 
@@ -27,6 +30,9 @@ interface ProcessedImageDao {
 
     @Query("DELETE FROM processed_images WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Query("DELETE FROM processed_images WHERE status = 'processing'")
+    suspend fun deleteStaleProcessing()
 
     @Query("DELETE FROM processed_images")
     suspend fun deleteAll()

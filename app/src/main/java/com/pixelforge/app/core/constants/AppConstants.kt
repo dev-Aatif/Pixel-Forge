@@ -6,15 +6,30 @@ package com.pixelforge.app.core.constants
 object AppConstants {
     const val APP_NAME = "PixelForge"
     const val DATABASE_NAME = "pixelforge_db"
-    const val DATABASE_VERSION = 1
+    const val DATABASE_VERSION = 2
 
     // Processing defaults
     const val DEFAULT_SCALE_FACTOR = 4
-    const val DEFAULT_TILE_SIZE = 0 // 0 = auto
+    const val DEFAULT_TILE_SIZE = 0 // 0 = adaptive auto
     const val DEFAULT_USE_GPU = true
+    const val DEFAULT_USE_NPU = true
+    const val DEFAULT_FACE_ENHANCE = true
+    const val DEFAULT_MAX_RESOLUTION = 1600
+    const val DEFAULT_EXPORT_FORMAT = "PNG"
 
-    // Model names (matching asset filenames without extension)
-    const val MODEL_PHOTO = "realesrgan-x4plus"
+    // Model identifiers
+    const val MODEL_FAST_PHOTO = "realesr-general-x4v3"
+    const val MODEL_ANIME_ART = "realesr-animevideov3"
+    const val MODEL_ULTRA_PHOTO = "realesrgan-x4plus"
+    const val MODEL_FACE_RESTORE = "gfpgan-v1.4"
+
+    // Optional model download URLs (on-demand download for heavy models)
+    const val URL_ULTRA_PHOTO_PARAM =
+        "https://huggingface.co/edgetools/realesrgan/resolve/main/realesrgan-x4plus.param"
+    const val URL_ULTRA_PHOTO_BIN =
+        "https://huggingface.co/edgetools/realesrgan/resolve/main/realesrgan-x4plus.bin"
+    const val URL_FACE_RESTORE_ONNX =
+        "https://huggingface.co/OwlMaster/AllFilesRope/resolve/main/GFPGANv1.4.onnx"
 
     // Image limits
     const val MAX_INPUT_DIMENSION = 4096
@@ -22,17 +37,27 @@ object AppConstants {
 
     // Export
     const val DEFAULT_JPEG_QUALITY = 95
-    const val DEFAULT_PNG_COMPRESSION = 9
 
-    // WorkManager
+    // WorkManager & Notifications
     const val UPSCALE_WORK_NAME = "upscale_work"
     const val UPSCALE_WORK_TAG = "upscale"
+    const val UPSCALE_NOTIFICATION_CHANNEL_ID = "upscale_progress"
+    const val UPSCALE_NOTIFICATION_ID = 1001
+
     const val KEY_INPUT_URI = "input_uri"
     const val KEY_MODEL_NAME = "model_name"
     const val KEY_SCALE_FACTOR = "scale_factor"
     const val KEY_TILE_SIZE = "tile_size"
     const val KEY_USE_GPU = "use_gpu"
+    const val KEY_USE_NPU = "use_npu"
+    const val KEY_FACE_ENHANCE = "face_enhance"
+    const val KEY_EXPORT_FORMAT = "export_format"
+    const val KEY_JPEG_QUALITY = "jpeg_quality"
+    const val KEY_MAX_RESOLUTION = "max_resolution"
     const val KEY_OUTPUT_URI = "output_uri"
+    const val KEY_RECORD_ID = "record_id"
+    const val KEY_BACKEND_USED = "backend_used"
     const val KEY_PROGRESS = "progress"
+    const val KEY_STATUS_MESSAGE = "status_message"
     const val KEY_ERROR_MESSAGE = "error_message"
 }

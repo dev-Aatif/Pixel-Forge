@@ -1,25 +1,6 @@
 *.iml
 .gradle
 /local.properties
-/.idea
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-
-# Native prebuilt libs (user downloads these)
-app/src/main/jniLibs/
-
-# Model files (too large for git)
-app/src/main/assets/models/v1/*.bin
-app/src/main/assets/models/v1/*.param
-
-# General
-*.iml
-.gradle
-/local.properties
 /.idea/
 .DS_Store
 /build
@@ -27,17 +8,26 @@ app/src/main/assets/models/v1/*.param
 .externalNativeBuild
 .cxx
 
-# Project specific
-local.properties
-
-# Native libs & Models (too large for git)
+# Native prebuilt libs (user downloads these)
 app/src/main/jniLibs/
-app/src/main/assets/models/v1/*.bin
-app/src/main/assets/models/v1/*.param
+
+# Heavy optional model files (downloaded on-demand or user-placed)
+app/src/main/assets/models/v1/realesrgan-x4plus.bin
+app/src/main/assets/models/v1/realesrgan-x4plus.param
 
 # Gradle Wrapper (some people keep these, but they are binary)
-# Only uncomment if you want to keep your repo strictly source-only
 # gradle-wrapper.jar
+
+# Keystores & secrets
+*.jks
+*.keystore
+keystore.properties
+
+# Build artifacts & release outputs
+*.apk
+*.aab
+dist/
+.hallmark/
 
 # Kotlin/Hilt/Room generated files
 .kotlin/
