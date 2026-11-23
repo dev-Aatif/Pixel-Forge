@@ -62,18 +62,12 @@ app/src/main/
 # Run on-device instrumentation & engine smoke tests
 ./gradlew connectedDebugAndroidTest
 
-# Build release APK (set RELEASE_KEYSTORE_PATH env vars to sign)
+# Build release APK
 ./gradlew assembleRelease
 ```
 
-### Release Signing (Optional / CI)
-When building signed releases locally or in GitHub Actions, set:
-- `RELEASE_KEYSTORE_PATH`
-- `RELEASE_STORE_PASSWORD`
-- `RELEASE_KEY_ALIAS`
-- `RELEASE_KEY_PASSWORD`
-
-In GitHub Actions, configure repository secrets `RELEASE_KEYSTORE_BASE64`, `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD`, then push a tag like `v1.0.0`.
+## Roadmap
+See [ROADMAP.md](ROADMAP.md) for planned improvements to inference speed, image quality, and UX.
 
 ## Credits & Upstream Projects
 - [Real-ESRGAN](https://github.com/xinntao/Real-ESRGAN) & [Real-ESRGAN-ncnn-vulkan](https://github.com/xinntao/Real-ESRGAN-ncnn-vulkan)
