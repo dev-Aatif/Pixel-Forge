@@ -2,6 +2,16 @@
 
 All notable changes to **PixelForge** are documented in this file.
 
+## [1.2.0] - 2026-11-25
+
+### Added
+- **In-App Updater Engine (`AppUpdateEngine`, `AppUpdateNotifier`, `UpdateAvailableDialog`):** Checks GitHub Releases over HTTPS (daily rate-limited launch check + manual **Check now** button in Settings), posts OS update notifications, and shows a Darkroom update modal with release notes, APK download size, skip-version persistence, and direct APK / GitHub links.
+- **About & Credits Screen (`AboutScreen`):** Dedicated Settings entry showcasing the app lab plate, developer profile & links (`dev-Aatif`), open-source AI engine credits (`Real-ESRGAN`, `Tencent NCNN`, `ONNX Runtime`, `MediaPipe`, `GFPGAN`), and GNU GPL v3.0 license details.
+- **Plain-English Model & Scale Guides (`ScaleOption`, `ModelType`):** Clear explanations of what `2×` vs. `4×` scaling and `Fast Photo`, `Anime & Text`, and `Ultra Photo` models do—plus when and why to use each—directly in `EditorScreen` and `SettingsScreen`.
+
+### Fixed
+- Scoped `Context.deleteAppOwnedFile` strictly to `filesDir/uploads/` so temporary cache fixtures and downloaded model files cannot be matched.
+
 ## [1.1.0] - 2026-11-25
 
 ### Added
