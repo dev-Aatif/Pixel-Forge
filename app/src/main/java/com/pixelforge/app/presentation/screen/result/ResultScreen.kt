@@ -1,5 +1,6 @@
 package com.pixelforge.app.presentation.screen.result
 
+import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.BorderStroke
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -234,7 +236,7 @@ fun ResultScreen(
                                 onClick = onHome,
                                 modifier = Modifier
                                     .weight(0.9f)
-                                    .height(50.dp),
+                                    .defaultMinSize(minHeight = 50.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                             ) {
@@ -248,17 +250,20 @@ fun ResultScreen(
                                         val mime = context.contentResolver.getType(uri) ?: "image/png"
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             putExtra(Intent.EXTRA_STREAM, uri)
+                                            clipData = ClipData.newRawUri("", uri)
                                             type = mime
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
-                                        context.startActivity(
-                                            Intent.createChooser(shareIntent, "Share enhanced image")
-                                        )
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent.createChooser(shareIntent, "Share enhanced image")
+                                            )
+                                        }
                                     }
                                 },
                                 modifier = Modifier
                                     .weight(1.3f)
-                                    .height(50.dp),
+                                    .defaultMinSize(minHeight = 50.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary,
@@ -330,8 +335,8 @@ private fun LedgerCell(
             text = value,
             style = LabTextStyles.TabularStat,
             color = valueColor,
-            maxLines = 1,
-            softWrap = false,
+            maxLines = 2,
+            softWrap = true,
             overflow = TextOverflow.Ellipsis
         )
     }

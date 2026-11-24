@@ -39,13 +39,15 @@ jobs:
           SRC_DIR=$(find /tmp/ncnn -maxdepth 3 -type d -name arm64-v8a | head -n 1)
           cp -r "$SRC_DIR"/* app/src/main/jniLibs/arm64-v8a/
 
-      - name: Decode optional release keystore
+      - name: Decode and validate release keystore
         id: keystore
         run: |
-          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.jks
-            echo "RELEASE_KEYSTORE_PATH=/tmp/release.jks" >> "$GITHUB_ENV"
+          if [ -z "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ] || [ -z "${{ secrets.RELEASE_STORE_PASSWORD }}" ] || [ -z "${{ secrets.RELEASE_KEY_ALIAS }}" ] || [ -z "${{ secrets.RELEASE_KEY_PASSWORD }}" ]; then
+            echo "::error::Missing release signing secrets (RELEASE_KEYSTORE_BASE64 / RELEASE_STORE_PASSWORD / RELEASE_KEY_ALIAS / RELEASE_KEY_PASSWORD)."
+            exit 1
           fi
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > /tmp/release.jks
+          echo "RELEASE_KEYSTORE_PATH=/tmp/release.jks" >> "$GITHUB_ENV"
 
       - name: Run unit tests and build release APK
         env:
@@ -54,10 +56,18 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: ./gradlew testDebugUnitTest assembleRelease
 
-      - name: Prepare release artifacts & checksums
+      - name: Verify APK signature and prepare release artifacts
         run: |
           mkdir -p dist
+          if ls app/build/outputs/apk/release/*-unsigned.apk >/dev/null 2>&1; then
+            echo "::error::Unsigned APK generated; refusing to publish."
+            exit 1
+          fi
           cp app/build/outputs/apk/release/*.apk dist/
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)
+          for apk in dist/*.apk; do
+            "$APKSIGNER" verify --verbose "$apk"
+          done
           (cd dist && sha256sum *.apk > SHA256SUMS.txt)
           ls -lh dist/
 

@@ -36,5 +36,5 @@ jobs:
           SRC_DIR=$(find /tmp/ncnn -maxdepth 3 -type d -name arm64-v8a | head -n 1)
           cp -r "$SRC_DIR"/* app/src/main/jniLibs/arm64-v8a/
 
-      - name: Run unit tests, native build, and lint
-        run: ./gradlew testDebugUnitTest externalNativeBuildDebug lintDebug
+      - name: Run unit tests, native build, lint, and R8 release verification
+        run: ./gradlew testDebugUnitTest externalNativeBuildDebug lintDebug assembleRelease

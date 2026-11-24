@@ -11,6 +11,7 @@ import androidx.work.WorkManager
 import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.core.extensions.copyUriToInternalStorage
 import com.pixelforge.app.core.extensions.decodePreviewBitmap
+import com.pixelforge.app.core.extensions.deleteAppOwnedFile
 import com.pixelforge.app.core.extensions.formatFileSize
 import com.pixelforge.app.core.extensions.getFileSize
 import com.pixelforge.app.core.extensions.getImageDimensions
@@ -22,11 +23,13 @@ import com.pixelforge.app.domain.repository.SettingsRepository
 import com.pixelforge.app.engine.FaceRestorationPipeline
 import com.pixelforge.app.worker.UpscaleWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -43,8 +46,11 @@ data class EditorUiState(
     val outputHeight: Int = 0,
     val detectedFaces: Int = 0,
     val isIllustrationRecommended: Boolean = false,
+    val isDownscaledInput: Boolean = false,
     val isUltraAvailable: Boolean = false,
     val ultraDownloadProgress: Float? = null,
+    val loadError: String? = null,
+    val downloadError: String? = null,
     val isReady: Boolean = false
 )
 
@@ -56,8 +62,13 @@ class EditorViewModel @Inject constructor(
     private val modelManager: ModelManager
 ) : AndroidViewModel(application) {
 
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val _uiState = MutableStateFlow(EditorUiState())
     val uiState: StateFlow<EditorUiState> = _uiState.asStateFlow()
+
+    private var stagedFileUri: String? = null
+    private var workEnqueued = false
 
     fun loadImage(uriString: String) {
         if (_uiState.value.sourceUri == uriString && _uiState.value.isReady) return
@@ -75,8 +86,14 @@ class EditorViewModel @Inject constructor(
             val jpegQuality = settingsRepository.getJpegQuality().first()
             val maxResolution = settingsRepository.getMaxResolution().first()
 
-            val analysis = withContext(Dispatchers.IO) {
+            val analysis = withContext(ioDispatcher) {
                 val persistentUri = context.copyUriToInternalStorage(originalUri) ?: originalUri
+                if (persistentUri != originalUri) {
+                    stagedFileUri?.takeIf { it != persistentUri.toString() }?.let { old ->
+                        context.deleteAppOwnedFile(old)
+                    }
+                    stagedFileUri = persistentUri.toString()
+                }
                 val dims = context.getImageDimensions(persistentUri)
                 val size = context.getFileSize(persistentUri)
                 val preview = context.decodePreviewBitmap(persistentUri, maxPreviewDimension = 512)
@@ -112,6 +129,7 @@ class EditorViewModel @Inject constructor(
             )
 
             val (outW, outH) = projectOutputSize(analysis.width, analysis.height, config)
+            val ready = analysis.width > 0 && analysis.height > 0
 
             _uiState.value = EditorUiState(
                 sourceUri = uriString,
@@ -124,54 +142,66 @@ class EditorViewModel @Inject constructor(
                 outputHeight = outH,
                 detectedFaces = analysis.faceCount,
                 isIllustrationRecommended = analysis.isFlat && analysis.faceCount == 0,
+                isDownscaledInput = ready && maxOf(analysis.width, analysis.height) > config.maxResolution,
                 isUltraAvailable = analysis.ultraAvailable,
-                isReady = analysis.width > 0 && analysis.height > 0
+                loadError = if (ready) null else "Unable to read this image. Please choose another photo.",
+                isReady = ready
             )
         }
     }
 
     fun setModelType(modelType: ModelType) {
-        val state = _uiState.value
-        val updatedConfig = state.config.copy(
-            modelType = modelType,
-            faceEnhance = if (modelType == ModelType.ANIME_ART) false else state.config.faceEnhance
-        )
-        val (outW, outH) = projectOutputSize(state.imageWidth, state.imageHeight, updatedConfig)
-        _uiState.value = state.copy(
-            config = updatedConfig,
-            outputWidth = outW,
-            outputHeight = outH
-        )
+        _uiState.update { state ->
+            val updatedConfig = state.config.copy(
+                modelType = modelType,
+                faceEnhance = if (modelType == ModelType.ANIME_ART) false else state.config.faceEnhance
+            )
+            val (outW, outH) = projectOutputSize(state.imageWidth, state.imageHeight, updatedConfig)
+            state.copy(
+                config = updatedConfig,
+                outputWidth = outW,
+                outputHeight = outH
+            )
+        }
     }
 
     fun setScaleFactor(scale: Int) {
-        val state = _uiState.value
-        val updatedConfig = state.config.copy(scaleFactor = scale)
-        val (outW, outH) = projectOutputSize(state.imageWidth, state.imageHeight, updatedConfig)
-        _uiState.value = state.copy(
-            config = updatedConfig,
-            outputWidth = outW,
-            outputHeight = outH
-        )
+        _uiState.update { state ->
+            val updatedConfig = state.config.copy(scaleFactor = scale)
+            val (outW, outH) = projectOutputSize(state.imageWidth, state.imageHeight, updatedConfig)
+            state.copy(
+                config = updatedConfig,
+                outputWidth = outW,
+                outputHeight = outH
+            )
+        }
     }
 
     fun setFaceEnhance(enabled: Boolean) {
-        val state = _uiState.value
-        _uiState.value = state.copy(config = state.config.copy(faceEnhance = enabled))
+        _uiState.update { state ->
+            state.copy(config = state.config.copy(faceEnhance = enabled))
+        }
+    }
+
+    fun clearDownloadError() {
+        _uiState.update { it.copy(downloadError = null) }
     }
 
     fun downloadUltraModel() {
         if (_uiState.value.ultraDownloadProgress != null) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(ultraDownloadProgress = 0f)
+            _uiState.update { it.copy(ultraDownloadProgress = 0f, downloadError = null) }
             val result = modelManager.downloadUltraPhotoModel { p ->
-                _uiState.value = _uiState.value.copy(ultraDownloadProgress = p)
+                _uiState.update { it.copy(ultraDownloadProgress = p) }
             }
             val available = result.isSuccess && modelManager.isModelAvailable(ModelType.ULTRA_PHOTO, 4)
-            _uiState.value = _uiState.value.copy(
-                isUltraAvailable = available,
-                ultraDownloadProgress = null
-            )
+            _uiState.update {
+                it.copy(
+                    isUltraAvailable = available,
+                    ultraDownloadProgress = null,
+                    downloadError = result.exceptionOrNull()?.message
+                )
+            }
             if (available) {
                 setModelType(ModelType.ULTRA_PHOTO)
             }
@@ -179,6 +209,7 @@ class EditorViewModel @Inject constructor(
     }
 
     fun startProcessing(): String {
+        workEnqueued = true
         val state = _uiState.value
         val cfg = state.config
         val inputData = Data.Builder()
@@ -219,6 +250,15 @@ class EditorViewModel @Inject constructor(
         val cappedW = (inW * capScale).roundToInt().coerceAtLeast(1)
         val cappedH = (inH * capScale).roundToInt().coerceAtLeast(1)
         return (cappedW * config.scaleFactor) to (cappedH * config.scaleFactor)
+    }
+
+    override fun onCleared() {
+        if (!workEnqueued) {
+            stagedFileUri?.let { uri ->
+                getApplication<Application>().deleteAppOwnedFile(uri)
+            }
+        }
+        super.onCleared()
     }
 
     private data class AnalysisBundle(

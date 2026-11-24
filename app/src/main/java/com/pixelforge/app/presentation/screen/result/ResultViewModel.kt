@@ -61,15 +61,15 @@ class ResultViewModel @Inject constructor(
     private suspend fun loadBitmaps(record: ProcessedImage) {
         withContext(Dispatchers.IO) {
             try {
-                val beforeBitmap = context.decodePreviewBitmap(
+                val beforeBitmap = decodePreviewWithFallback(
                     Uri.parse(record.inputUri),
-                    maxPreviewDimension = 1440
+                    preferredMaxDim = 2048
                 )?.asImageBitmap()
 
                 val afterBitmap = record.outputUri?.let { uriStr ->
-                    context.decodePreviewBitmap(
+                    decodePreviewWithFallback(
                         Uri.parse(uriStr),
-                        maxPreviewDimension = 1440
+                        preferredMaxDim = 2880
                     )?.asImageBitmap()
                 }
 
@@ -93,5 +93,13 @@ class ResultViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun decodePreviewWithFallback(uri: Uri, preferredMaxDim: Int): android.graphics.Bitmap? {
+        for (dim in listOf(preferredMaxDim, 1920, 1440).distinct()) {
+            val bmp = context.decodePreviewBitmap(uri, maxPreviewDimension = dim)
+            if (bmp != null) return bmp
+        }
+        return null
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +26,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -41,6 +45,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -52,12 +58,15 @@ import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -78,6 +87,7 @@ fun EditorScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -90,7 +100,15 @@ fun EditorScreen(
         viewModel.loadImage(imageUri)
     }
 
+    LaunchedEffect(uiState.downloadError) {
+        uiState.downloadError?.let { msg ->
+            snackbarHostState.showSnackbar("Model download failed: $msg")
+            viewModel.clearDownloadError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column {
                 TopAppBar(
@@ -157,7 +175,7 @@ fun EditorScreen(
                                 }
                             },
                             enabled = uiState.isReady,
-                            modifier = Modifier.height(48.dp),
+                            modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -199,14 +217,31 @@ fun EditorScreen(
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (uiState.imageUri.isNotEmpty()) {
+                if (uiState.loadError != null) {
+                    Text(
+                        text = uiState.loadError!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(20.dp)
+                    )
+                } else if (uiState.imageUri.isNotEmpty()) {
                     AsyncImage(
                         model = uiState.imageUri,
-                        contentDescription = "Preview",
+                        contentDescription = "Selected photo preview",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
                 }
+            }
+
+            if (uiState.isDownscaledInput) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Input capped at ${uiState.config.maxResolution} px before ${uiState.config.scaleFactor}× enhance (adjustable in Settings)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -264,6 +299,7 @@ fun EditorScreen(
                     .clip(RoundedCornerShape(8.dp))
                     .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
                     .height(IntrinsicSize.Min)
+                    .selectableGroup()
             ) {
                 val scales = listOf(2, 4)
                 scales.forEachIndexed { index, scale ->
@@ -271,6 +307,7 @@ fun EditorScreen(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp)
                             .background(
                                 if (selected) {
                                     MaterialTheme.colorScheme.primaryContainer
@@ -278,8 +315,12 @@ fun EditorScreen(
                                     MaterialTheme.colorScheme.surfaceVariant
                                 }
                             )
-                            .clickable { viewModel.setScaleFactor(scale) }
-                            .padding(vertical = 12.dp),
+                            .selectable(
+                                selected = selected,
+                                role = Role.RadioButton,
+                                onClick = { viewModel.setScaleFactor(scale) }
+                            )
+                            .padding(vertical = 12.dp, horizontal = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -325,7 +366,7 @@ fun EditorScreen(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth().selectableGroup()) {
                     ModelType.entries.forEachIndexed { index, modelType ->
                         val isSelected = uiState.config.modelType == modelType
                         val needsDownload =
@@ -341,9 +382,12 @@ fun EditorScreen(
                                         MaterialTheme.colorScheme.surfaceVariant
                                     }
                                 )
-                                .clickable {
-                                    if (!needsDownload) viewModel.setModelType(modelType)
-                                }
+                                .selectable(
+                                    selected = isSelected,
+                                    enabled = !needsDownload,
+                                    role = Role.RadioButton,
+                                    onClick = { viewModel.setModelType(modelType) }
+                                )
                                 .height(IntrinsicSize.Min),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -424,6 +468,11 @@ fun EditorScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .toggleable(
+                                value = uiState.config.faceEnhance,
+                                role = Role.Switch,
+                                onValueChange = { viewModel.setFaceEnhance(it) }
+                            )
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -448,7 +497,7 @@ fun EditorScreen(
                         }
                         Switch(
                             checked = uiState.config.faceEnhance,
-                            onCheckedChange = { viewModel.setFaceEnhance(it) },
+                            onCheckedChange = null,
                             colors = SwitchDefaults.colors(
                                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary

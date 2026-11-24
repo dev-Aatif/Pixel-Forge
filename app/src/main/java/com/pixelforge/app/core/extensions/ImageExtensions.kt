@@ -3,12 +3,14 @@ package com.pixelforge.app.core.extensions
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ColorSpace
 import android.graphics.Matrix
 import android.net.Uri
 import android.webkit.MimeTypeMap
 import androidx.exifinterface.media.ExifInterface
 import java.io.File
 import java.io.FileOutputStream
+import java.util.UUID
 
 /**
  * Bitmap and image utility extensions with OOM-safe sampling and EXIF orientation handling.
@@ -33,18 +35,17 @@ fun Context.decodeBitmapFromUri(uri: Uri, maxDimension: Int = 4096): Bitmap? {
         val orientedWidth = if (isSwapped) rawHeight else rawWidth
         val orientedHeight = if (isSwapped) rawWidth else rawHeight
 
-        // Choose largest power-of-two sampleSize that keeps dimensions >= maxDimension (if larger)
+        // Choose largest power-of-two sampleSize keeping the longest edge >= maxDimension (if larger)
+        val longestSide = maxOf(orientedWidth, orientedHeight)
         var sampleSize = 1
-        while (
-            (orientedWidth / (sampleSize * 2)) >= maxDimension &&
-            (orientedHeight / (sampleSize * 2)) >= maxDimension
-        ) {
+        while ((longestSide / (sampleSize * 2)) >= maxDimension) {
             sampleSize *= 2
         }
 
         val decodeOptions = BitmapFactory.Options().apply {
             inSampleSize = sampleSize
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inPreferredColorSpace = ColorSpace.get(ColorSpace.Named.SRGB)
             inMutable = false
         }
 
@@ -53,7 +54,7 @@ fun Context.decodeBitmapFromUri(uri: Uri, maxDimension: Int = 4096): Bitmap? {
         } ?: return null
 
         val upright = applyExifOrientation(decoded, exifOrientation)
-        if (upright != decoded) decoded.recycle()
+        if (upright !== decoded) decoded.recycle()
 
         val maxSide = maxOf(upright.width, upright.height)
         if (maxSide <= maxDimension) {
@@ -64,7 +65,7 @@ fun Context.decodeBitmapFromUri(uri: Uri, maxDimension: Int = 4096): Bitmap? {
         val targetW = (upright.width * scale).toInt().coerceAtLeast(1)
         val targetH = (upright.height * scale).toInt().coerceAtLeast(1)
         val scaled = Bitmap.createScaledBitmap(upright, targetW, targetH, true)
-        if (scaled != upright) upright.recycle()
+        if (scaled !== upright) upright.recycle()
         ensureArgb8888(scaled)
     } catch (_: OutOfMemoryError) {
         null
@@ -138,7 +139,7 @@ fun Context.copyUriToInternalStorage(uri: Uri, folderName: String = "uploads"): 
         val mime = contentResolver.getType(uri)
         val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(mime) ?: "jpg"
         val folder = File(filesDir, folderName).apply { mkdirs() }
-        val fileName = "IMG_${System.currentTimeMillis()}.$ext"
+        val fileName = "IMG_${System.currentTimeMillis()}_${UUID.randomUUID().toString().take(8)}.$ext"
         val file = File(folder, fileName)
 
         inputStream.use { input ->
@@ -150,6 +151,27 @@ fun Context.copyUriToInternalStorage(uri: Uri, folderName: String = "uploads"): 
     } catch (_: Exception) {
         null
     }
+}
+
+/**
+ * Deletes an app-owned staged file inside [filesDir]/uploads or [cacheDir] safely.
+ */
+fun Context.deleteAppOwnedFile(uriString: String?): Boolean {
+    if (uriString.isNullOrBlank()) return false
+    return runCatching {
+        val uri = Uri.parse(uriString)
+        if (uri.scheme != "file") return false
+        val path = uri.path ?: return false
+        val file = File(path)
+        val filesRoot = filesDir.canonicalPath
+        val cacheRoot = cacheDir.canonicalPath
+        val targetCanonical = file.canonicalPath
+        if (targetCanonical.startsWith(filesRoot) || targetCanonical.startsWith(cacheRoot)) {
+            file.delete()
+        } else {
+            false
+        }
+    }.getOrDefault(false)
 }
 
 /**

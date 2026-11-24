@@ -1,7 +1,6 @@
 <resources>
-    <!-- Base application theme. -->
-    <style name="Theme.PixelForge" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">@color/dark_background</item>
-        <item name="android:navigationBarColor">@color/dark_background</item>
+    <!-- Base application theme matching Darkroom ground to avoid white cold-start flash. -->
+    <style name="Theme.PixelForge" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@color/dark_background</item>
     </style>
 </resources>

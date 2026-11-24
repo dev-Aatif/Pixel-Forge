@@ -17,7 +17,7 @@ val DarkSurfaceElevated = Color(0xFF272420)  // Elevated interactive surface
 // Ink Hierarchy
 val TextPrimary = Color(0xFFEAE5DC)          // Warm fibre-white
 val TextSecondary = Color(0xFFB8B1A6)        // Muted paper ink
-val TextTertiary = Color(0xFF7E776D)         // Subtle metadata ink
+val TextTertiary = Color(0xFF968E83)         // Accessible subtle metadata ink (>=4.9:1 on dark surfaces)
 
 // Primary — Safelight Amber (primary actions, active selection, loupe handle)
 val PrimaryDark = Color(0xFFE59A3C)

@@ -3,11 +3,15 @@ package com.pixelforge.app.worker
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.core.app.NotificationCompat
+import com.pixelforge.app.MainActivity
+import com.pixelforge.app.R
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -16,6 +20,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.core.extensions.decodeBitmapFromUri
+import com.pixelforge.app.core.extensions.deleteAppOwnedFile
 import com.pixelforge.app.core.extensions.getFileSize
 import com.pixelforge.app.core.utils.MediaStoreUtils
 import com.pixelforge.app.data.local.ProcessedImageDao
@@ -74,7 +79,10 @@ class UpscaleWorker @AssistedInject constructor(
 
         val inputUri = Uri.parse(inputUriStr)
         val inputBitmap = applicationContext.decodeBitmapFromUri(inputUri, maxDimension = maxResolution)
-            ?: return@withContext Result.failure(errorData("Failed to decode input image"))
+        if (inputBitmap == null) {
+            applicationContext.deleteAppOwnedFile(inputUriStr)
+            return@withContext Result.failure(errorData("Failed to decode input image"))
+        }
 
         val scaleFactor = if (userScaleFactor in listOf(2, 4)) {
             userScaleFactor
@@ -133,6 +141,7 @@ class UpscaleWorker @AssistedInject constructor(
 
             if (result == null || isStopped) {
                 dao.deleteById(recordId)
+                applicationContext.deleteAppOwnedFile(inputUriStr)
                 return@withContext Result.failure(errorData("Processing failed or was cancelled"))
             }
 
@@ -148,6 +157,7 @@ class UpscaleWorker @AssistedInject constructor(
 
             if (outputUri == null) {
                 dao.deleteById(recordId)
+                applicationContext.deleteAppOwnedFile(inputUriStr)
                 return@withContext Result.failure(errorData("Failed to save output image"))
             }
 
@@ -190,9 +200,19 @@ class UpscaleWorker @AssistedInject constructor(
         } catch (ce: CancellationException) {
             engineSelector.cancelCurrent()
             dao.deleteById(recordId)
+            applicationContext.deleteAppOwnedFile(inputUriStr)
             throw ce
+        } catch (_: OutOfMemoryError) {
+            engineSelector.cancelCurrent()
+            dao.deleteById(recordId)
+            applicationContext.deleteAppOwnedFile(inputUriStr)
+            System.gc()
+            Result.failure(
+                errorData("Image is too large for available memory. Lower Max input edge in Settings or use 2× scale.")
+            )
         } catch (e: Exception) {
             dao.deleteById(recordId)
+            applicationContext.deleteAppOwnedFile(inputUriStr)
             Result.failure(errorData("Unexpected error: ${e.message ?: "Unknown"}"))
         } finally {
             outputBitmap?.recycle()
@@ -215,13 +235,23 @@ class UpscaleWorker @AssistedInject constructor(
     }
 
     private fun buildNotification(text: String): Notification {
+        val launchIntent = Intent(applicationContext, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val contentIntent = PendingIntent.getActivity(
+            applicationContext,
+            0,
+            launchIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
         return NotificationCompat.Builder(
             applicationContext,
             AppConstants.UPSCALE_NOTIFICATION_CHANNEL_ID
         )
-            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(AppConstants.APP_NAME)
             .setContentText(text)
+            .setContentIntent(contentIntent)
             .setOngoing(true)
             .setSilent(true)
             .build()

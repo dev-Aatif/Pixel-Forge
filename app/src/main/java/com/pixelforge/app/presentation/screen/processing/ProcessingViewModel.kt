@@ -34,8 +34,15 @@ class ProcessingViewModel @Inject constructor(
     val uiState: StateFlow<ProcessingUiState> = _uiState.asStateFlow()
 
     fun observeWork(workIdStr: String) {
+        val workId = runCatching { UUID.fromString(workIdStr) }.getOrNull()
+        if (workId == null) {
+            _uiState.value = _uiState.value.copy(
+                status = "Failed",
+                error = "Invalid processing job ID"
+            )
+            return
+        }
         val workManager = WorkManager.getInstance(getApplication())
-        val workId = UUID.fromString(workIdStr)
 
         viewModelScope.launch {
             workManager.getWorkInfoByIdFlow(workId).collect { workInfo ->
@@ -90,6 +97,8 @@ class ProcessingViewModel @Inject constructor(
     }
 
     fun cancelWork(workIdStr: String) {
-        WorkManager.getInstance(getApplication()).cancelWorkById(UUID.fromString(workIdStr))
+        runCatching { UUID.fromString(workIdStr) }.getOrNull()?.let { workId ->
+            WorkManager.getInstance(getApplication()).cancelWorkById(workId)
+        }
     }
 }

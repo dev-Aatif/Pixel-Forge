@@ -9,10 +9,14 @@ import com.pixelforge.app.data.model.ModelManager
 import com.pixelforge.app.domain.model.ModelType
 import com.pixelforge.app.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class SettingsUiState(
@@ -29,7 +33,8 @@ data class SettingsUiState(
     val isFacePackDownloaded: Boolean = false,
     val ultraDownloadProgress: Float? = null,
     val facePackDownloadProgress: Float? = null,
-    val downloadedModelsSizeStr: String = "0 B"
+    val downloadedModelsSizeStr: String = "0 B",
+    val downloadError: String? = null
 )
 
 @HiltViewModel
@@ -39,60 +44,74 @@ class SettingsViewModel @Inject constructor(
     private val modelManager: ModelManager
 ) : ViewModel() {
 
+    internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
             settingsRepository.getDefaultModelType().collect { model ->
-                _uiState.value = _uiState.value.copy(defaultModelType = model)
+                _uiState.update { it.copy(defaultModelType = model) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getDefaultScaleFactor().collect { scale ->
-                _uiState.value = _uiState.value.copy(defaultScaleFactor = scale)
+                _uiState.update { it.copy(defaultScaleFactor = scale) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getUseGpu().collect { gpu ->
-                _uiState.value = _uiState.value.copy(useGpu = gpu)
+                _uiState.update { it.copy(useGpu = gpu) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getUseNpu().collect { npu ->
-                _uiState.value = _uiState.value.copy(useNpu = npu)
+                _uiState.update { it.copy(useNpu = npu) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getFaceEnhanceDefault().collect { face ->
-                _uiState.value = _uiState.value.copy(faceEnhanceDefault = face)
+                _uiState.update { it.copy(faceEnhanceDefault = face) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getDefaultExportFormat().collect { fmt ->
-                _uiState.value = _uiState.value.copy(exportFormat = fmt)
+                _uiState.update { it.copy(exportFormat = fmt) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getJpegQuality().collect { q ->
-                _uiState.value = _uiState.value.copy(jpegQuality = q)
+                _uiState.update { it.copy(jpegQuality = q) }
             }
         }
         viewModelScope.launch {
             settingsRepository.getMaxResolution().collect { maxRes ->
-                _uiState.value = _uiState.value.copy(maxResolution = maxRes)
+                _uiState.update { it.copy(maxResolution = maxRes) }
             }
         }
         refreshStorageStats()
     }
 
     fun refreshStorageStats() {
-        _uiState.value = _uiState.value.copy(
-            cacheSizeStr = cacheManager.getCacheSize().formatFileSize(),
-            isUltraDownloaded = modelManager.isModelAvailable(ModelType.ULTRA_PHOTO, 4),
-            isFacePackDownloaded = modelManager.isFaceRestoreAvailable(),
-            downloadedModelsSizeStr = modelManager.getDownloadedModelsSizeBytes().formatFileSize()
-        )
+        viewModelScope.launch {
+            val stats = withContext(ioDispatcher) {
+                StorageStats(
+                    cacheSize = cacheManager.getCacheSize().formatFileSize(),
+                    ultraAvailable = modelManager.isModelAvailable(ModelType.ULTRA_PHOTO, 4),
+                    facePackAvailable = modelManager.isFaceRestoreAvailable(),
+                    modelsSize = modelManager.getDownloadedModelsSizeBytes().formatFileSize()
+                )
+            }
+            _uiState.update {
+                it.copy(
+                    cacheSizeStr = stats.cacheSize,
+                    isUltraDownloaded = stats.ultraAvailable,
+                    isFacePackDownloaded = stats.facePackAvailable,
+                    downloadedModelsSizeStr = stats.modelsSize
+                )
+            }
+        }
     }
 
     fun setModelType(modelType: ModelType) {
@@ -127,14 +146,23 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setMaxResolution(maxRes) }
     }
 
+    fun clearDownloadError() {
+        _uiState.update { it.copy(downloadError = null) }
+    }
+
     fun downloadUltraModel() {
         if (_uiState.value.ultraDownloadProgress != null) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(ultraDownloadProgress = 0f)
-            modelManager.downloadUltraPhotoModel { p ->
-                _uiState.value = _uiState.value.copy(ultraDownloadProgress = p)
+            _uiState.update { it.copy(ultraDownloadProgress = 0f, downloadError = null) }
+            val result = modelManager.downloadUltraPhotoModel { p ->
+                _uiState.update { it.copy(ultraDownloadProgress = p) }
             }
-            _uiState.value = _uiState.value.copy(ultraDownloadProgress = null)
+            _uiState.update {
+                it.copy(
+                    ultraDownloadProgress = null,
+                    downloadError = result.exceptionOrNull()?.message
+                )
+            }
             refreshStorageStats()
         }
     }
@@ -142,22 +170,38 @@ class SettingsViewModel @Inject constructor(
     fun downloadFaceRestoreModel() {
         if (_uiState.value.facePackDownloadProgress != null) return
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(facePackDownloadProgress = 0f)
-            modelManager.downloadFaceRestoreModel { p ->
-                _uiState.value = _uiState.value.copy(facePackDownloadProgress = p)
+            _uiState.update { it.copy(facePackDownloadProgress = 0f, downloadError = null) }
+            val result = modelManager.downloadFaceRestoreModel { p ->
+                _uiState.update { it.copy(facePackDownloadProgress = p) }
             }
-            _uiState.value = _uiState.value.copy(facePackDownloadProgress = null)
+            _uiState.update {
+                it.copy(
+                    facePackDownloadProgress = null,
+                    downloadError = result.exceptionOrNull()?.message
+                )
+            }
             refreshStorageStats()
         }
     }
 
     fun clearDownloadedModels() {
-        modelManager.clearDownloadedModels()
-        refreshStorageStats()
+        viewModelScope.launch {
+            withContext(ioDispatcher) { modelManager.clearDownloadedModels() }
+            refreshStorageStats()
+        }
     }
 
     fun clearCache() {
-        cacheManager.clearAll()
-        refreshStorageStats()
+        viewModelScope.launch {
+            withContext(ioDispatcher) { cacheManager.clearAll() }
+            refreshStorageStats()
+        }
     }
+
+    private data class StorageStats(
+        val cacheSize: String,
+        val ultraAvailable: Boolean,
+        val facePackAvailable: Boolean,
+        val modelsSize: String
+    )
 }

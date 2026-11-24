@@ -4,12 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,6 +32,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -37,12 +41,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,8 +65,17 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.downloadError) {
+        uiState.downloadError?.let { msg ->
+            snackbarHostState.showSnackbar("Download failed: $msg")
+            viewModel.clearDownloadError()
+        }
+    }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             Column {
                 TopAppBar(
@@ -333,7 +348,9 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
                 OutlinedButton(
                     onClick = viewModel::clearDownloadedModels,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
@@ -363,6 +380,7 @@ fun SettingsScreen(
                     }
                     OutlinedButton(
                         onClick = viewModel::clearCache,
+                        modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                         shape = RoundedCornerShape(8.dp),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                     ) {
@@ -407,6 +425,11 @@ private fun SettingSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -421,7 +444,7 @@ private fun SettingSwitchRow(
         }
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
             colors = SwitchDefaults.colors(
                 checkedTrackColor = MaterialTheme.colorScheme.primary,
                 checkedThumbColor = MaterialTheme.colorScheme.onPrimary
@@ -459,6 +482,7 @@ private fun ModelDownloadRow(
             if (!isDownloaded && progress == null) {
                 Button(
                     onClick = onDownload,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

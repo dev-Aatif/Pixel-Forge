@@ -1,5 +1,6 @@
 package com.pixelforge.app.engine
 
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -76,6 +77,16 @@ class NativeUpscaleBenchmarkTest {
         assertEquals(256, out2x!!.width)
         assertEquals(256, out2x.height)
 
+        val hasVulkanCompute = context.packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_COMPUTE) ||
+            context.packageManager.hasSystemFeature(PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL)
+        if (hasVulkanCompute) {
+            assertEquals(
+                "NCNN should use Vulkan GPU when Vulkan hardware is available",
+                ComputeBackend.GPU_VULKAN,
+                engine.activeBackend
+            )
+        }
+
         val center = out2x.getPixel(128, 128)
         assertTrue(
             "Anime 2x output must not be black or glitched: r=${Color.red(center)} g=${Color.green(center)} b=${Color.blue(center)}",
@@ -128,5 +139,57 @@ class NativeUpscaleBenchmarkTest {
         out4x.recycle()
         input.recycle()
         engine.release()
+    }
+
+    @Test
+    fun fastPhotoOrtEngine_multiTileAnd2xDownsample_completesWithoutSeamArtifacts() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        assertTrue("Native library should load", NativeLoader.load())
+        val ortEngine = OrtNpuUpscaleEngine(context)
+
+        // 320x280 forces 2x2 tiles with 256 tileSize, exercising border padding & core cropping
+        val input = Bitmap.createBitmap(320, 280, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(100, 150, 200))
+        }
+
+        val out2x = ortEngine.upscale(
+            bitmap = input,
+            config = UpscaleConfig(modelType = ModelType.FAST_PHOTO, scaleFactor = 2, useNpu = true),
+            onProgress = {}
+        )
+        assertNotNull("ORT 2x multi-tile output should not be null", out2x)
+        assertEquals(640, out2x!!.width)
+        assertEquals(560, out2x.height)
+
+        val seamPixel = out2x.getPixel(512, 512)
+        assertTrue(
+            "Boundary tile pixel should preserve color cleanly",
+            Color.red(seamPixel) in 60..140 && Color.green(seamPixel) in 110..190 && Color.blue(seamPixel) in 160..240
+        )
+
+        out2x.recycle()
+        input.recycle()
+        ortEngine.release()
+    }
+
+    @Test
+    fun postProcessor_nativeInPlacePolish_preservesLargeOutputWithoutOom() {
+        assertTrue("Native library should load", NativeLoader.load())
+        val source = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(120, 140, 160))
+        }
+        val upscaled = Bitmap.createBitmap(1024, 1024, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(Color.rgb(100, 120, 140))
+        }
+
+        val polished = PostProcessor().polish(source, upscaled, sharpenAmount = 0.11f)
+        assertEquals(1024, polished.width)
+        assertEquals(1024, polished.height)
+
+        val center = polished.getPixel(512, 512)
+        assertTrue("Color should shift slightly toward source", Color.red(center) > 100)
+
+        source.recycle()
+        polished.recycle()
     }
 }

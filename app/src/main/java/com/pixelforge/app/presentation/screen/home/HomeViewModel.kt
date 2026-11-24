@@ -1,6 +1,5 @@
 package com.pixelforge.app.presentation.screen.home
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.pixelforge.app.domain.model.ProcessedImage
@@ -9,13 +8,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class HomeUiState(
     val recentImages: List<ProcessedImage> = emptyList(),
-    val isLoading: Boolean = true,
-    val selectedImageUri: Uri? = null
+    val isLoading: Boolean = true
 )
 
 @HiltViewModel
@@ -33,19 +32,13 @@ class HomeViewModel @Inject constructor(
     private fun loadRecentImages() {
         viewModelScope.launch {
             getHistoryUseCase().collect { images ->
-                _uiState.value = _uiState.value.copy(
-                    recentImages = images.take(10), // Show latest 10
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        recentImages = images.filter { img -> img.status == "completed" }.take(10),
+                        isLoading = false
+                    )
+                }
             }
         }
-    }
-
-    fun onImageSelected(uri: Uri) {
-        _uiState.value = _uiState.value.copy(selectedImageUri = uri)
-    }
-
-    fun clearSelection() {
-        _uiState.value = _uiState.value.copy(selectedImageUri = null)
     }
 }

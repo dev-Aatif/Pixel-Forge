@@ -44,7 +44,7 @@ public:
      * Process (upscale) an RGBA_8888 pixel buffer.
      * Caller owns *outData and must free it with delete[].
      */
-    int process(const unsigned char* inData, int inWidth, int inHeight,
+    int process(const unsigned char* inData, int inWidth, int inHeight, int inStrideBytes,
                 unsigned char** outData, int* outWidth, int* outHeight);
 
     float getProgress() const;
@@ -59,8 +59,8 @@ private:
     int finalizeLoad(int scale, int tileSize);
     int processTile(ncnn::Mat& in, ncnn::Mat& out);
     int autoTileSize(int inWidth, int inHeight) const;
-    static bool hasTransparency(const unsigned char* inData, int width, int height);
-    static void upscaleAlphaBilinear(const unsigned char* inData, int inW, int inH,
+    static bool hasTransparency(const unsigned char* inData, int width, int height, int strideBytes);
+    static void upscaleAlphaBilinear(const unsigned char* inData, int inW, int inH, int inStrideBytes,
                                      unsigned char* outData, int outW, int outH, int scale);
 
     ncnn::Net net_;

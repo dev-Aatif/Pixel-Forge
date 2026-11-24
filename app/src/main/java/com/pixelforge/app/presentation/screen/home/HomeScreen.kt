@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -174,7 +175,7 @@ fun HomeScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(52.dp),
+                                .defaultMinSize(minHeight = 52.dp),
                             shape = RoundedCornerShape(8.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
@@ -211,21 +212,28 @@ fun HomeScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 if (uiState.recentImages.isNotEmpty()) {
-                    Text(
-                        text = "View all",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .clip(RoundedCornerShape(6.dp))
                             .clickable(onClick = onNavigateToHistory)
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                    )
+                            .padding(horizontal = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "View all",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (uiState.recentImages.isEmpty()) {
+            if (uiState.isLoading) {
+                Spacer(modifier = Modifier.height(72.dp))
+            } else if (uiState.recentImages.isEmpty()) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
@@ -272,7 +280,7 @@ fun HomeScreen(
                         ) {
                             AsyncImage(
                                 model = image.outputUri ?: image.inputUri,
-                                contentDescription = "Recent image",
+                                contentDescription = "${image.modelType.displayName} ${image.scaleFactor}x, ${image.outputWidth} by ${image.outputHeight}",
                                 modifier = Modifier
                                     .size(114.dp)
                                     .clip(RoundedCornerShape(6.dp))

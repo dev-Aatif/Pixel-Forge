@@ -51,7 +51,10 @@ class SettingsViewModelTest {
 
     @Test
     fun `updates settings and clears cache cleanly`() = runTest {
-        val vm = SettingsViewModel(settingsRepository, cacheManager, modelManager)
+        val vm = SettingsViewModel(settingsRepository, cacheManager, modelManager).apply {
+            ioDispatcher = testDispatcher
+        }
+        vm.refreshStorageStats()
         advanceUntilIdle()
 
         assertEquals("2.0 KB", vm.uiState.value.cacheSizeStr)

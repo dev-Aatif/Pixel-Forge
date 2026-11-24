@@ -160,7 +160,7 @@ fun ImageCard(
                 Spacer(modifier = Modifier.width(4.dp))
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,
@@ -176,15 +176,15 @@ fun ImageCard(
 
 @Composable
 private fun StatusIcon(status: String) {
-    val (icon, tint) = when (status) {
-        "completed" -> Icons.Default.CheckCircle to SuccessGreen
-        "failed" -> Icons.Default.Error to ErrorRed
-        else -> Icons.Default.HourglassBottom to WarningAmber
+    val (icon, tint, label) = when (status) {
+        "completed" -> Triple(Icons.Default.CheckCircle, SuccessGreen, "Completed")
+        "failed" -> Triple(Icons.Default.Error, ErrorRed, "Failed")
+        else -> Triple(Icons.Default.HourglassBottom, WarningAmber, "In progress")
     }
 
     Icon(
         imageVector = icon,
-        contentDescription = status,
+        contentDescription = label,
         tint = tint,
         modifier = Modifier.size(16.dp)
     )
