@@ -16,4 +16,5 @@ sealed class Routes(val route: String) {
     }
     data object History : Routes("history")
     data object Settings : Routes("settings")
+    data object About : Routes("about")
 }

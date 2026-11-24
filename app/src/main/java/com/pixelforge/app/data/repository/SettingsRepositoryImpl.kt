@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.domain.model.ModelType
@@ -31,6 +32,9 @@ class SettingsRepositoryImpl @Inject constructor(
         private val KEY_EXPORT_FORMAT = stringPreferencesKey("export_format")
         private val KEY_JPEG_QUALITY = intPreferencesKey("jpeg_quality")
         private val KEY_MAX_RESOLUTION = intPreferencesKey("max_resolution")
+        private val KEY_AUTO_CHECK_UPDATES = booleanPreferencesKey("auto_check_updates")
+        private val KEY_LAST_UPDATE_CHECK_MS = longPreferencesKey("last_update_check_ms")
+        private val KEY_DISMISSED_UPDATE_VERSION = stringPreferencesKey("dismissed_update_version")
     }
 
     override fun getDefaultModelType(): Flow<ModelType> {
@@ -97,5 +101,35 @@ class SettingsRepositoryImpl @Inject constructor(
 
     override suspend fun setMaxResolution(maxRes: Int) {
         dataStore.edit { it[KEY_MAX_RESOLUTION] = maxRes }
+    }
+
+    override fun getAutoCheckUpdates(): Flow<Boolean> {
+        return dataStore.data.map { it[KEY_AUTO_CHECK_UPDATES] ?: true }
+    }
+
+    override suspend fun setAutoCheckUpdates(enabled: Boolean) {
+        dataStore.edit { it[KEY_AUTO_CHECK_UPDATES] = enabled }
+    }
+
+    override fun getLastUpdateCheckMs(): Flow<Long> {
+        return dataStore.data.map { it[KEY_LAST_UPDATE_CHECK_MS] ?: 0L }
+    }
+
+    override suspend fun setLastUpdateCheckMs(timestampMs: Long) {
+        dataStore.edit { it[KEY_LAST_UPDATE_CHECK_MS] = timestampMs }
+    }
+
+    override fun getDismissedUpdateVersion(): Flow<String?> {
+        return dataStore.data.map { it[KEY_DISMISSED_UPDATE_VERSION] }
+    }
+
+    override suspend fun setDismissedUpdateVersion(version: String?) {
+        dataStore.edit { prefs ->
+            if (version.isNullOrBlank()) {
+                prefs.remove(KEY_DISMISSED_UPDATE_VERSION)
+            } else {
+                prefs[KEY_DISMISSED_UPDATE_VERSION] = version
+            }
+        }
     }
 }

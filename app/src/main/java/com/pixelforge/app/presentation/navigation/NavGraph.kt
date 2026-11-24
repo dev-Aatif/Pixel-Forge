@@ -11,6 +11,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.pixelforge.app.presentation.screen.about.AboutScreen
 import com.pixelforge.app.presentation.screen.editor.EditorScreen
 import com.pixelforge.app.presentation.screen.history.HistoryScreen
 import com.pixelforge.app.presentation.screen.home.HomeScreen
@@ -133,6 +134,16 @@ fun NavGraph(navController: NavHostController) {
         // Settings
         composable(Routes.Settings.route) {
             SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToAbout = {
+                    navController.navigate(Routes.About.route)
+                }
+            )
+        }
+
+        // About & Credits
+        composable(Routes.About.route) {
+            AboutScreen(
                 onBack = { navController.popBackStack() }
             )
         }

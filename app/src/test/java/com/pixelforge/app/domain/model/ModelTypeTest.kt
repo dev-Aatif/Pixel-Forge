@@ -27,4 +27,20 @@ class ModelTypeTest {
         assertEquals(ModelType.FAST_PHOTO, ModelType.fromModelName("nonexistent"))
         assertEquals(ModelType.ANIME_ART, ModelType.fromModelName("realesr-animevideov3"))
     }
+
+    @Test
+    fun `all models and scale options provide user-facing descriptions and usage guidance`() {
+        ModelType.entries.forEach { model ->
+            assertTrue("${model.name} subtitle blank", model.subtitle.isNotBlank())
+            assertTrue("${model.name} description blank", model.description.isNotBlank())
+            assertTrue("${model.name} bestFor blank", model.bestFor.isNotBlank())
+        }
+        assertEquals(ScaleOption.X2, ScaleOption.fromFactor(2))
+        assertEquals(ScaleOption.X4, ScaleOption.fromFactor(4))
+        ScaleOption.entries.forEach { scale ->
+            assertTrue("${scale.name} pixelSummary blank", scale.pixelSummary.isNotBlank())
+            assertTrue("${scale.name} description blank", scale.description.isNotBlank())
+            assertTrue("${scale.name} bestFor blank", scale.bestFor.isNotBlank())
+        }
+    }
 }

@@ -73,6 +73,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.pixelforge.app.domain.model.ModelType
+import com.pixelforge.app.domain.model.ScaleOption
 import com.pixelforge.app.presentation.theme.LabTextStyles
 import com.pixelforge.app.presentation.theme.TextTertiary
 
@@ -301,9 +302,9 @@ fun EditorScreen(
                     .height(IntrinsicSize.Min)
                     .selectableGroup()
             ) {
-                val scales = listOf(2, 4)
-                scales.forEachIndexed { index, scale ->
-                    val selected = uiState.config.scaleFactor == scale
+                val scales = listOf(ScaleOption.X2, ScaleOption.X4)
+                scales.forEachIndexed { index, scaleOption ->
+                    val selected = uiState.config.scaleFactor == scaleOption.factor
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -318,20 +319,37 @@ fun EditorScreen(
                             .selectable(
                                 selected = selected,
                                 role = Role.RadioButton,
-                                onClick = { viewModel.setScaleFactor(scale) }
+                                onClick = { viewModel.setScaleFactor(scaleOption.factor) }
                             )
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
+                            .padding(vertical = 10.dp, horizontal = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "${scale}× Enlarge",
-                            style = LabTextStyles.TabularStat,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = scaleOption.title,
+                                style = LabTextStyles.TabularStat,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (uiState.imageWidth > 0 && uiState.imageHeight > 0) {
+                                    "${uiState.imageWidth * scaleOption.factor}×${uiState.imageHeight * scaleOption.factor} px"
+                                } else {
+                                    if (scaleOption == ScaleOption.X2) "4× pixels • Faster" else "16× pixels • Max size"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                } else {
+                                    TextTertiary
+                                },
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                     if (index == 0) {
                         VerticalDivider(
@@ -339,6 +357,44 @@ fun EditorScreen(
                             color = MaterialTheme.colorScheme.outline
                         )
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            val selectedScale = ScaleOption.fromFactor(uiState.config.scaleFactor)
+            val otherScale = if (selectedScale == ScaleOption.X2) ScaleOption.X4 else ScaleOption.X2
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+                    Text(
+                        text = "${selectedScale.title} — ${selectedScale.pixelSummary}",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = selectedScale.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = selectedScale.bestFor,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextTertiary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "${otherScale.title}: ${otherScale.bestFor}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextTertiary
+                    )
                 }
             }
 
@@ -423,7 +479,27 @@ fun EditorScreen(
                                     text = modelType.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = if (isSelected) {
-                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.secondary
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = modelType.description,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.9f)
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = modelType.bestFor,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) {
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                     } else {
                                         TextTertiary
                                     }

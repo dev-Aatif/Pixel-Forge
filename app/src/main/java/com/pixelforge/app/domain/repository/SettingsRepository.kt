@@ -31,4 +31,13 @@ interface SettingsRepository {
 
     fun getMaxResolution(): Flow<Int>
     suspend fun setMaxResolution(maxRes: Int)
+
+    fun getAutoCheckUpdates(): Flow<Boolean>
+    suspend fun setAutoCheckUpdates(enabled: Boolean)
+
+    fun getLastUpdateCheckMs(): Flow<Long>
+    suspend fun setLastUpdateCheckMs(timestampMs: Long)
+
+    fun getDismissedUpdateVersion(): Flow<String?>
+    suspend fun setDismissedUpdateVersion(version: String?)
 }

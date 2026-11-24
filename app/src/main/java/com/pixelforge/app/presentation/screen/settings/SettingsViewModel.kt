@@ -2,10 +2,13 @@ package com.pixelforge.app.presentation.screen.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.pixelforge.app.BuildConfig
 import com.pixelforge.app.core.constants.AppConstants
 import com.pixelforge.app.core.extensions.formatFileSize
 import com.pixelforge.app.data.cache.ImageCacheManager
 import com.pixelforge.app.data.model.ModelManager
+import com.pixelforge.app.data.update.AppUpdateEngine
+import com.pixelforge.app.data.update.UpdateCheckResult
 import com.pixelforge.app.domain.model.ModelType
 import com.pixelforge.app.domain.repository.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,14 +37,21 @@ data class SettingsUiState(
     val ultraDownloadProgress: Float? = null,
     val facePackDownloadProgress: Float? = null,
     val downloadedModelsSizeStr: String = "0 B",
-    val downloadError: String? = null
+    val downloadError: String? = null,
+    val appVersionLabel: String = "v${BuildConfig.VERSION_NAME} (build ${BuildConfig.VERSION_CODE})",
+    val autoCheckUpdates: Boolean = true,
+    val isCheckingUpdate: Boolean = false,
+    val updateStatusMessage: String? = null,
+    val availableUpdateVersion: String? = null,
+    val updateSnackbarMessage: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val cacheManager: ImageCacheManager,
-    private val modelManager: ModelManager
+    private val modelManager: ModelManager,
+    private val appUpdateEngine: AppUpdateEngine
 ) : ViewModel() {
 
     internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
@@ -88,6 +98,38 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.getMaxResolution().collect { maxRes ->
                 _uiState.update { it.copy(maxResolution = maxRes) }
+            }
+        }
+        viewModelScope.launch {
+            settingsRepository.getAutoCheckUpdates().collect { enabled ->
+                _uiState.update { it.copy(autoCheckUpdates = enabled) }
+            }
+        }
+        viewModelScope.launch {
+            appUpdateEngine.isChecking.collect { checking ->
+                _uiState.update { it.copy(isCheckingUpdate = checking) }
+            }
+        }
+        viewModelScope.launch {
+            appUpdateEngine.updateState.collect { result ->
+                when (result) {
+                    is UpdateCheckResult.UpdateAvailable -> _uiState.update {
+                        it.copy(
+                            availableUpdateVersion = result.info.tagName,
+                            updateStatusMessage = "Update ${result.info.tagName} available"
+                        )
+                    }
+                    is UpdateCheckResult.UpToDate -> _uiState.update {
+                        it.copy(
+                            availableUpdateVersion = null,
+                            updateStatusMessage = "Up to date (v${result.currentVersion})"
+                        )
+                    }
+                    is UpdateCheckResult.Error -> _uiState.update {
+                        it.copy(updateStatusMessage = result.message)
+                    }
+                    null -> Unit
+                }
             }
         }
         refreshStorageStats()
@@ -144,6 +186,39 @@ class SettingsViewModel @Inject constructor(
 
     fun setMaxResolution(maxRes: Int) {
         viewModelScope.launch { settingsRepository.setMaxResolution(maxRes) }
+    }
+
+    fun setAutoCheckUpdates(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAutoCheckUpdates(enabled) }
+    }
+
+    fun checkForUpdates() {
+        if (_uiState.value.isCheckingUpdate) return
+        viewModelScope.launch {
+            when (val result = appUpdateEngine.checkForUpdates(manual = true)) {
+                is UpdateCheckResult.UpdateAvailable -> {
+                    _uiState.update { it.copy(updateSnackbarMessage = null) }
+                }
+                is UpdateCheckResult.UpToDate -> {
+                    _uiState.update {
+                        it.copy(updateSnackbarMessage = "You're on the latest version (v${result.currentVersion})")
+                    }
+                }
+                is UpdateCheckResult.Error -> {
+                    _uiState.update {
+                        it.copy(updateSnackbarMessage = "Update check failed: ${result.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    fun openAvailableUpdateDialog() {
+        appUpdateEngine.openUpdateDialogIfAvailable()
+    }
+
+    fun clearUpdateSnackbar() {
+        _uiState.update { it.copy(updateSnackbarMessage = null) }
     }
 
     fun clearDownloadError() {

@@ -154,7 +154,7 @@ fun Context.copyUriToInternalStorage(uri: Uri, folderName: String = "uploads"): 
 }
 
 /**
- * Deletes an app-owned staged file inside [filesDir]/uploads or [cacheDir] safely.
+ * Deletes an app-owned staged file inside [filesDir]/uploads safely.
  */
 fun Context.deleteAppOwnedFile(uriString: String?): Boolean {
     if (uriString.isNullOrBlank()) return false
@@ -163,10 +163,9 @@ fun Context.deleteAppOwnedFile(uriString: String?): Boolean {
         if (uri.scheme != "file") return false
         val path = uri.path ?: return false
         val file = File(path)
-        val filesRoot = filesDir.canonicalPath
-        val cacheRoot = cacheDir.canonicalPath
+        val uploadsRoot = File(filesDir, "uploads").canonicalPath
         val targetCanonical = file.canonicalPath
-        if (targetCanonical.startsWith(filesRoot) || targetCanonical.startsWith(cacheRoot)) {
+        if (targetCanonical.startsWith(uploadsRoot + File.separator)) {
             file.delete()
         } else {
             false

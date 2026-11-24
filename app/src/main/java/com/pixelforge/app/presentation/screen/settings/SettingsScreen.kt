@@ -1,6 +1,8 @@
 package com.pixelforge.app.presentation.screen.settings
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -10,14 +12,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -53,7 +60,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pixelforge.app.domain.model.ModelType
+import com.pixelforge.app.domain.model.ScaleOption
 import com.pixelforge.app.presentation.theme.LabTextStyles
+import com.pixelforge.app.presentation.theme.PrimaryContainer
+import com.pixelforge.app.presentation.theme.PrimaryDark
 import com.pixelforge.app.presentation.theme.SuccessGreen
 import com.pixelforge.app.presentation.theme.TextTertiary
 import kotlin.math.roundToInt
@@ -62,6 +72,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onNavigateToAbout: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -71,6 +82,13 @@ fun SettingsScreen(
         uiState.downloadError?.let { msg ->
             snackbarHostState.showSnackbar("Download failed: $msg")
             viewModel.clearDownloadError()
+        }
+    }
+
+    LaunchedEffect(uiState.updateSnackbarMessage) {
+        uiState.updateSnackbarMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearUpdateSnackbar()
         }
     }
 
@@ -133,7 +151,16 @@ fun SettingsScreen(
                         ) {
                             ModelType.entries.forEach { model ->
                                 DropdownMenuItem(
-                                    text = { Text(model.displayName) },
+                                    text = {
+                                        Column {
+                                            Text(model.displayName, style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                model.subtitle,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextTertiary
+                                            )
+                                        }
+                                    },
                                     onClick = {
                                         viewModel.setModelType(model)
                                         expandedModel = false
@@ -142,6 +169,13 @@ fun SettingsScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "${uiState.defaultModelType.description} ${uiState.defaultModelType.bestFor}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextTertiary
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -167,17 +201,34 @@ fun SettingsScreen(
                             expanded = expandedScale,
                             onDismissRequest = { expandedScale = false }
                         ) {
-                            listOf(2, 4).forEach { scale ->
+                            listOf(ScaleOption.X2, ScaleOption.X4).forEach { scaleOption ->
                                 DropdownMenuItem(
-                                    text = { Text("${scale}×") },
+                                    text = {
+                                        Column {
+                                            Text("${scaleOption.factor}×", style = MaterialTheme.typography.bodyMedium)
+                                            Text(
+                                                scaleOption.pixelSummary,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = TextTertiary
+                                            )
+                                        }
+                                    },
                                     onClick = {
-                                        viewModel.setScaleFactor(scale)
+                                        viewModel.setScaleFactor(scaleOption.factor)
                                         expandedScale = false
                                     }
                                 )
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val defaultScaleGuide = ScaleOption.fromFactor(uiState.defaultScaleFactor)
+                    Text(
+                        text = "${defaultScaleGuide.description} ${defaultScaleGuide.bestFor}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextTertiary
+                    )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
@@ -321,9 +372,9 @@ fun SettingsScreen(
                     ModelDownloadRow(
                         title = "Ultra Photo (realesrgan-x4plus)",
                         subtitle = if (uiState.isUltraDownloaded) {
-                            "Installed (32 MB)"
+                            "Installed (32 MB) • Best for blurry, old, or cropped photos"
                         } else {
-                            "Heavy 23-RRDB model (~32 MB)"
+                            "Rebuilds fine photo textures for old, blurry, or cropped shots (~32 MB)"
                         },
                         isDownloaded = uiState.isUltraDownloaded,
                         progress = uiState.ultraDownloadProgress,
@@ -333,9 +384,9 @@ fun SettingsScreen(
                     ModelDownloadRow(
                         title = "Neural Face Restore (GFPGAN v1.4)",
                         subtitle = if (uiState.isFacePackDownloaded) {
-                            "Installed (~340 MB)"
+                            "Installed (~340 MB) • Neural portrait enhancement active"
                         } else {
-                            "Studio portrait restoration (~340 MB)"
+                            "Reconstructs blurry portrait faces with studio detail (~340 MB)"
                         },
                         isDownloaded = uiState.isFacePackDownloaded,
                         progress = uiState.facePackDownloadProgress,
@@ -386,6 +437,136 @@ fun SettingsScreen(
                     ) {
                         Text("Clear")
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+            SectionTitle("Updates")
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SettingsPanel {
+                Column {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "PixelForge ${uiState.appVersionLabel}",
+                                    style = MaterialTheme.typography.titleSmall
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                val statusText = uiState.updateStatusMessage
+                                    ?: "Check GitHub Releases for newer builds"
+                                Text(
+                                    text = statusText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (uiState.availableUpdateVersion != null) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        TextTertiary
+                                    }
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            OutlinedButton(
+                                onClick = viewModel::checkForUpdates,
+                                enabled = !uiState.isCheckingUpdate,
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                            ) {
+                                if (uiState.isCheckingUpdate) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Checking")
+                                } else {
+                                    Text("Check now")
+                                }
+                            }
+                        }
+
+                        if (uiState.availableUpdateVersion != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
+                                onClick = viewModel::openAvailableUpdateDialog,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .defaultMinSize(minHeight = 48.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
+                            ) {
+                                Text("View & install ${uiState.availableUpdateVersion}")
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+                    SettingSwitchRow(
+                        title = "Auto-check on launch",
+                        subtitle = "Notify when a new GitHub release is published (once per day)",
+                        checked = uiState.autoCheckUpdates,
+                        onCheckedChange = viewModel::setAutoCheckUpdates
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(22.dp))
+            SectionTitle("About")
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SettingsPanel {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 60.dp)
+                        .clickable(onClick = onNavigateToAbout)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.size(36.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = PrimaryContainer
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = PrimaryDark,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "About PixelForge & Credits",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Developer links, AI engines, open-source credits & license",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextTertiary
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Open about page",
+                        tint = TextTertiary
+                    )
                 }
             }
 

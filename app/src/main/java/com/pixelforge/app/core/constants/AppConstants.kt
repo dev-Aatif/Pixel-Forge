@@ -43,6 +43,21 @@ object AppConstants {
     const val UPSCALE_WORK_TAG = "upscale"
     const val UPSCALE_NOTIFICATION_CHANNEL_ID = "upscale_progress"
     const val UPSCALE_NOTIFICATION_ID = 1001
+    const val UPDATE_NOTIFICATION_CHANNEL_ID = "app_updates"
+    const val UPDATE_NOTIFICATION_ID = 1002
+    const val EXTRA_SHOW_UPDATE_DIALOG = "extra_show_update_dialog"
+
+    // App Updater & Project Links
+    const val UPDATE_CHECK_INTERVAL_MS = 24L * 60L * 60L * 1000L
+    const val DEVELOPER_NAME = "Aatif"
+    const val DEVELOPER_HANDLE = "dev-Aatif"
+    const val DEVELOPER_EMAIL = "Aatiff.P@proton.me"
+    const val URL_GITHUB_PROFILE = "https://github.com/dev-Aatif"
+    const val URL_GITHUB_REPO = "https://github.com/dev-Aatif/Pixel-Forge"
+    const val URL_GITHUB_RELEASES = "https://github.com/dev-Aatif/Pixel-Forge/releases"
+    const val URL_GITHUB_RELEASES_API = "https://api.github.com/repos/dev-Aatif/Pixel-Forge/releases/latest"
+    const val URL_GITHUB_ISSUES = "https://github.com/dev-Aatif/Pixel-Forge/issues"
+    const val URL_GITHUB_LICENSE = "https://github.com/dev-Aatif/Pixel-Forge/blob/main/LICENSE"
 
     const val KEY_INPUT_URI = "input_uri"
     const val KEY_MODEL_NAME = "model_name"
