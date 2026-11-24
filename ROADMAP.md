@@ -8,7 +8,7 @@ Planned improvements for **PixelForge**, focused on pushing offline speed even l
 
 ### Near-Term (`v1.1`)
 - [ ] **INT8 / FP16 Quantized NPU Models (`w8a8` / `fp16`):** Package a quantized `realesr-general-x4v3` ONNX/QNN variant to halve NPU memory bandwidth and cut inference time on Snapdragon Hexagon and MediaTek APU chips.
-- [ ] **Cosine / Linear Tile Overlap Feathering:** Add a narrow `4–8px` weighted blend along cropped tile seams in `realesrgan.cpp` and `OrtNpuUpscaleEngine` to prevent subtle boundary transitions on noisy low-light skies.
+- [x] **Cosine / Linear Tile Overlap Feathering:** Add a narrow `4–8px` weighted blend along cropped tile seams in `realesrgan.cpp` and `OrtNpuUpscaleEngine` to prevent subtle boundary transitions on noisy low-light skies.
 - [ ] **Live Tile Loupe Preview in Editor:** Let users tap/drag a `256×256` region in `EditorScreen` to preview one upscaled tile in ~1 second before committing to a full-image run.
 - [ ] **Denoise Strength Control (`-dn` Blending):** Pair `realesr-general-x4v3` with its denoising weights (`realesr-general-wdn-x4v3`) so users can dial artifact removal vs. natural grain preservation.
 
