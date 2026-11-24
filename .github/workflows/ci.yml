@@ -23,10 +23,12 @@ jobs:
 
       - name: Set up Android SDK & NDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
-      - name: Install CMake & NDK
+      - name: Install SDK Platform, Build Tools, CMake & NDK
         run: |
-          sdkmanager --install "cmake;3.22.1" "ndk;27.2.12479018"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.0.12077973"
 
       - name: Download NCNN Android Vulkan prebuilt
         run: |
